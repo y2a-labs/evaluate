@@ -45,33 +45,6 @@ type ScriptChatOutputBody struct {
 	TaskIndex int
 }
 
-type ScriptChatValidationOutput struct {
-	Body BodyResults `json:"body"`
-}
-
-type BodyResults struct {
-	Messages []openai.ChatCompletionMessage `json:"messages"`
-	Results  []queryResult                  `json:"results"`
-}
-
-type results struct {
-	Model       string  `json:"model"`
-	LLMResponse string  `json:"llm_response"`
-	Similarity  float64 `json:"similarity"`
-}
-
-type queryResult struct {
-	Query   query     `json:"query"`
-	Results []results `json:"results"`
-}
-
-type query struct {
-	MessageIndex    int                            `json:"message_index"`
-	Messages        []openai.ChatCompletionMessage `json:"messages"`
-	UserResponse    string                         `json:"user_response"`
-	CorrectResponse string                         `json:"correct_response"`
-}
-
 func parseSystemMessage(script *Script, task Task) (string, error) {
 	systemPrompt := script.SystemPromptString
 
@@ -166,6 +139,33 @@ func PostScriptChat(ctx context.Context, input *ScriptChatInput) (*ScriptChatOut
 	return result, nil
 }
 
+type ScriptChatValidationOutput struct {
+	Body BodyResults `json:"body"`
+}
+
+type BodyResults struct {
+	Messages []Message `json:"messages"`
+}
+
+type Message struct {
+	Content           string                       `json:"content"`
+	Role              string                       `json:"role"`
+	TaskIndex         int                          `json:"task_index"`
+	MessageIndex      int                          `json:"message_index"`
+	LLMSimilarityList map[string]LLMSimilarityList `json:"llm_results"`
+}
+
+type LLMSimilarityList struct {
+	Model             string          `json:"model"`
+	AverageSimilarity float64         `json:"average_similarity"`
+	LLMResponses      []LLMSimilarity `json:"responses"`
+}
+
+type LLMSimilarity struct {
+	LLMResponse string  `json:"llm_response"`
+	Similarity  float64 `json:"similarity"`
+}
+
 func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testCount int, models []string) (*ScriptChatValidationOutput, error) {
 	// Parse the system message
 	task := input.Body.Script.Task[input.Body.TaskIndex]
@@ -195,7 +195,7 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 	var wg sync.WaitGroup
 	routineCount := userMessageCount * len(models) * testCount
 	errCh := make(chan error, routineCount)
-	resultsCh := make(chan queryResult, routineCount)
+	resultsCh := make(chan Message, routineCount)
 
 	// Range over the models and test count
 	for _, model := range models {
@@ -227,18 +227,18 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 						errCh <- err
 						return
 					}
-					result := queryResult{
-						Query: query{
-							MessageIndex:    i,
-							Messages:        input.Body.Messages,
-							UserResponse:    userMessage.Content,
-							CorrectResponse: input.Body.Messages[i+1].Content,
-						},
-						Results: []results{
-							{
-								Model:       model,
-								LLMResponse: llm_response.Content,
-								Similarity:  similarity,
+
+					nextMessage := input.Body.Messages[i+1]
+
+					result := Message{
+						Content:      nextMessage.Content,
+						Role:         nextMessage.Role,
+						MessageIndex: i + 1,
+						TaskIndex:    input.Body.TaskIndex,
+						LLMSimilarityList: map[string]LLMSimilarityList{
+							model: {
+								Model:        model,
+								LLMResponses: []LLMSimilarity{{LLMResponse: llm_response.Content, Similarity: similarity}},
 							},
 						},
 					}
@@ -259,27 +259,58 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 		}
 	}
 
-	results := make([]queryResult, 0)
+	results := make([]Message, len(input.Body.Messages))
 
-	for result := range resultsCh {
-
-		// Groups the results by the user message
-		var found bool
-		for i, r := range results {
-			if r.Query.UserResponse == result.Query.UserResponse {
-				results[i].Results = append(results[i].Results, result.Results...)
-				found = true
-				break
-			}
-		}
-		if !found {
-			results = append(results, result)
+	// Load the messages into the results
+	for i, msg := range input.Body.Messages {
+		results[i] = Message{
+			Content:      msg.Content,
+			Role:         msg.Role,
+			MessageIndex: i,
 		}
 	}
+
+	// Load the test results into the results
+	for result := range resultsCh {
+		i := result.MessageIndex
+		noLLMList := results[i].LLMSimilarityList == nil || len(results[i].LLMSimilarityList) == 0
+		if noLLMList {
+			results[i].LLMSimilarityList = result.LLMSimilarityList
+		} else {
+			for model, llmSimilarity := range result.LLMSimilarityList {
+				temp := results[i].LLMSimilarityList[model]
+				temp.LLMResponses = append(temp.LLMResponses, llmSimilarity.LLMResponses...)
+				results[i].LLMSimilarityList[model] = temp
+			}
+		}
+	}
+
+	// Calculates the average similarity
+	for _, result := range results {
+		if result.Role != "assistant" {
+			continue
+		}
+		result.SetAverageSimilarity()
+	}
+
 	return &ScriptChatValidationOutput{
 		Body: BodyResults{
-			Results:  results,
-			Messages: input.Body.Messages,
+			Messages: results,
 		},
 	}, nil
+}
+
+func (message *Message) SetAverageSimilarity() {
+	for model, value := range message.LLMSimilarityList {
+		averageSimilarity := 0.0
+		for _, llmSimilarity := range value.LLMResponses {
+			averageSimilarity += llmSimilarity.Similarity
+		}
+
+		averageSimilarity = averageSimilarity / float64(len(value.LLMResponses))
+		value.AverageSimilarity = averageSimilarity
+		temp := message.LLMSimilarityList[model]
+		temp.AverageSimilarity = value.AverageSimilarity
+		message.LLMSimilarityList[model] = temp
+	}
 }

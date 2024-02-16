@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"script_validation/components"
 	"script_validation/handlers"
-	"sort"
 	"strconv"
 	"time"
 
@@ -69,31 +68,8 @@ func GetResultsList(c *fiber.Ctx) error {
 		return err
 	}
 
-	messages := make([]handlers.Message, len(resp.Body.Messages))
-
-	for i, msg := range resp.Body.Messages {
-		// Loads in the full list of messages
-		messages[i] = handlers.Message{Choice: msg}
-	}
-
-	// Adds the results to the list of messages
-	for i, _ := range resp.Body.Messages {
-		for _, query := range resp.Body.Results {
-			if query.Query.MessageIndex == i {
-				messages[i+1].Results = append(messages[i+1].Results, query.Results...)
-			}
-		}
-
-		if i+1 < len(messages) {
-			// Sorts the results by similarity in descending order
-			sort.Slice(messages[i+1].Results, func(j, k int) bool {
-				return messages[i+1].Results[j].Similarity > messages[i+1].Results[k].Similarity
-			})
-		}
-	}
-
 	fmt.Println("Recieved the results, now rendering the results page")
-	return Render(c, components.TestResults(messages[1:]))
+	return Render(c, components.ResultMessage(resp.Body.Messages))
 }
 
 func Render(c *fiber.Ctx, component templ.Component, options ...func(*templ.ComponentHandler)) error {

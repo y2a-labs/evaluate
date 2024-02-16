@@ -1,6 +1,7 @@
 package components
 
 import "script_validation/handlers"
+
 import "fmt"
 
 templ Layout() {
@@ -12,7 +13,7 @@ templ Layout() {
 		</head>
 		<link href="output.css" rel="stylesheet"/>
 		<body class="h-full overflow-hidden">
-			<div id="app">
+			<div id="app" class="h-full overflow-y-auto">
 				{ children... }
 			</div>
 			<script src="htmx.min.js"></script>
@@ -26,20 +27,32 @@ templ Nav() {
 	</nav>
 }
 
-templ TestResults(messages []handlers.Message) {
-	<div class="p-2 flex flex-col space-y-6">
-		for _, message := range messages {
-			<div class="p-2 rounded-xl">
-				<div class="text-md font-bold">{ message.Choice.Role }</div>
-				<div class="text-md">{ message.Choice.Content }</div>
-				<div class="flex flex-col space-y-2">
-					for _, result := range message.Results {
-						<div class="p-2 border border-solid rounded-xl">
-							<div>{ result.Model }</div>
-							<div class="text-sm">{ result.LLMResponse }</div>
-							<div>Similarity: { fmt.Sprintf("%f", result.Similarity) }</div>
-						</div>
-					}
+func SimilarityToString(similarity float64) string {
+	return fmt.Sprintf("%.2f", similarity*100)
+}
+
+templ TestResult(msg handlers.Message) {
+	for model, v := range msg.LLMSimilarityList {
+		<div class="py-2">
+			<div class="text-md">
+				<b>{ model }: </b>
+				<span>{ SimilarityToString(v.AverageSimilarity) }% Accuracy</span>
+			</div>
+			for _, v := range v.LLMResponses {
+				<div class="text-md">{ v.LLMResponse }</div>
+			}
+		</div>
+	}
+}
+
+templ ResultMessage(messages []handlers.Message) {
+	<div class="p-2 flex flex-col space-y-4">
+		for _, msg := range messages {
+			<div class="p-4 border border-solid rounded-xl">
+				<div class="text-md font-bold">{ msg.Role }</div>
+				<div class="text-md">{ msg.Content }</div>
+				<div class="flex flex-col px-4 space-y-2">
+					@TestResult(msg)
 				</div>
 			</div>
 		}
@@ -49,7 +62,7 @@ templ TestResults(messages []handlers.Message) {
 templ Home() {
 	@Layout() {
 		@Nav()
-		<div class="container mx-auto max-w-4xl p-8">
+		<div class="container mx-auto max-w-4xl py-8 px-4">
 			<div class="py-4">
 				@ValidationForm()
 				<h2 class="text-xl py-4">Test Results:</h2>
