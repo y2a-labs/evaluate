@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"script_validation/handlers"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v2"
 )
 
-func getPayloadFromYAML(filename string) (*ScriptChatInput, error) {
+func getPayloadFromYAML(filename string) (*handlers.ScriptChatInput, error) {
 	// Open the file
 	file, err := os.Open(filename)
 	if err != nil {
@@ -27,7 +28,7 @@ func getPayloadFromYAML(filename string) (*ScriptChatInput, error) {
 	}
 
 	// Unmarshal the YAML data into the Body field of a ScriptChatInput struct
-	payload := &ScriptChatInput{}
+	payload := &handlers.ScriptChatInput{}
 	err = yaml.Unmarshal(data, &payload.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
@@ -81,7 +82,7 @@ func PostScriptClient() {
 			return
 		}
 
-		resp, err := PostScriptChat(context.Background(), payload)
+		resp, err := handlers.PostScriptChat(context.Background(), payload)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -105,7 +106,7 @@ func PostScriptValidationClient() {
 
 	testCount := 1
 	models := []string{"undi95/toppy-m-7b"}
-	_, err = PostScriptChatValidation(context.Background(), payload, testCount, models)
+	_, err = handlers.PostScriptChatValidation(context.Background(), payload, testCount, models)
 	if err != nil {
 		fmt.Println(err)
 		return

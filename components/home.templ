@@ -1,68 +1,60 @@
 package components
 
+import "script_validation/handlers"
+import "fmt"
+
 templ Layout() {
-    <html lang="en" class="w-full h-full">
-    <head>
-        <meta charset="UTF-8"/>
-        <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    </head>
-    <link href="output.css" rel="stylesheet"/>
-    <body class="h-full overflow-hidden">
-        <div id="app">
-            {children...}
-        </div>
-        <script src="htmx.min.js"/>
-    </body>
-    </html>
-}
-
-templ ValidationForm(models []string) {
-  <form hx-post="/post-script" class="flex flex-col space-y-2" hx-target="#testResults" hx-swap="innerHTML" enctype="multipart/form-data">
-      <label for="test-count">
-          <span>Test Count</span>
-          <input type="number" name="test-count" class="rounded-xl" placeholder="Enter how many tests to run" value="1"/>
-      </label>
-      <label for="filename">
-          <span>Filename</span>
-          <input type="text" name="filename" class="rounded-xl" placeholder="Enter the yaml file name" value="script.yaml"/>
-      </label>
-
-      <label class="" for="models">
-          <span class="text-lg">Models:</span>
-          <div class="grid lg:grid-cols-2 gap-4">
-            for _, model := range models {
-              <label>
-                  <input type="checkbox" checked name="models" value="{model}"/>
-                  <span>{model}</span>
-              </label>
-            }
-          </div>
-      </label>
-      <button type="submit" class="border border-solid bg-slate-200 rounded-xl px-4 py-2">Submit</button>
-  </form>
+	<html lang="en" class="w-full h-full">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		</head>
+		<link href="output.css" rel="stylesheet"/>
+		<body class="h-full overflow-hidden">
+			<div id="app">
+				{ children... }
+			</div>
+			<script src="htmx.min.js"></script>
+		</body>
+	</html>
 }
 
 templ Nav() {
-  <nav class="bg-slate-100 p-4">
-      <div class="text-xl">Script Validator</div>
-  </nav>
+	<nav class="bg-slate-100 p-4">
+		<div class="text-xl">Script Validator</div>
+	</nav>
 }
 
-templ TestResults() {
-  
+templ TestResults(messages []handlers.Message) {
+	<div class="p-2 flex flex-col space-y-6">
+		for _, message := range messages {
+			<div class="p-2 rounded-xl">
+				<div class="text-md font-bold">{ message.Choice.Role }</div>
+				<div class="text-md">{ message.Choice.Content }</div>
+				<div class="flex flex-col space-y-2">
+					for _, result := range message.Results {
+						<div class="p-2 border border-solid rounded-xl">
+							<div>{ result.Model }</div>
+							<div class="text-sm">{ result.LLMResponse }</div>
+							<div>Similarity: { fmt.Sprintf("%f", result.Similarity) }</div>
+						</div>
+					}
+				</div>
+			</div>
+		}
+	</div>
 }
 
-templ Home(models []string) {
-  @Layout() {
-    @Nav()
-    
-    <div class="container mx-auto max-w-5xl p-8">
-      @ValidationForm(models)
-      <div class="py-4">
-          <h2 class="text-xl py-4">Test Results:</h2>
-          <div id="testResults" class="flex flex-col space-y-4"></div>
-      </div>
-    </div>
-  }
+templ Home() {
+	@Layout() {
+		@Nav()
+		<div class="container mx-auto max-w-4xl p-8">
+			<div class="py-4">
+				@ValidationForm()
+				<h2 class="text-xl py-4">Test Results:</h2>
+				<div id="testResults" class="flex flex-col space-y-4"></div>
+			</div>
+		</div>
+	}
 }

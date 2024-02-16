@@ -1,0 +1,38 @@
+package components
+
+type Model struct {
+	Name    string
+	Checked bool
+}
+
+var models = []Model{
+	{Name: "openchat/openchat-7b", Checked: true},
+	{Name: "undi95/toppy-m-7b", Checked: true},
+	{Name: "gryphe/mythomax-l2-13b", Checked: false},
+	{Name: "nousresearch/nous-hermes-llama2-13b", Checked: false},
+}
+
+templ ValidationForm() {
+	<form hx-post="/post-script" class="flex flex-col space-y-2" hx-target="#testResults" hx-swap="innerHTML" enctype="multipart/form-data">
+		<label for="test-count">
+			<span>Test Count</span>
+			<input type="number" name="test-count" class="rounded-xl" placeholder="Enter how many tests to run" value="1"/>
+		</label>
+		<label for="filename">
+			<span>Filename</span>
+			<input type="text" name="filename" class="rounded-xl" placeholder="Enter the yaml file name" value="script.yaml"/>
+		</label>
+		<div for="models">
+			<span class="text-lg">Models:</span>
+			<div class="grid lg:grid-cols-2 gap-4">
+				for _, model := range models {
+					<label for="models">
+						<input type="checkbox" name="models" checked?={ model.Checked } value={ model.Name }/>
+						<span>{ model.Name }</span>
+					</label>
+				}
+			</div>
+		</div>
+		<button type="submit" class="border border-solid bg-slate-200 rounded-xl px-4 py-2">Submit</button>
+	</form>
+}

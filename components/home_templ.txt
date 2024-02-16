@@ -1,9 +1,0 @@
-<html lang=\"en\" class=\"w-full h-full\"><head><meta charset=\"UTF-8\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head><link href=\"output.css\" rel=\"stylesheet\"><body class=\"h-full overflow-hidden\"><div id=\"app\">
-</div><script src=\"htmx.min.js\"></script></body></html>
-<form hx-post=\"/post-script\" class=\"flex flex-col space-y-2\" hx-target=\"#testResults\" hx-swap=\"innerHTML\" enctype=\"multipart/form-data\"><label for=\"test-count\"><span>Test Count</span> <input type=\"number\" name=\"test-count\" class=\"rounded-xl\" placeholder=\"Enter how many tests to run\" value=\"1\"></label> <label for=\"filename\"><span>Filename</span> <input type=\"text\" name=\"filename\" class=\"rounded-xl\" placeholder=\"Enter the yaml file name\" value=\"script.yaml\"></label> <label class=\"\" for=\"models\"><span class=\"text-lg\">Models:</span><div class=\"grid lg:grid-cols-2 gap-4\">
-<label><input type=\"checkbox\" checked name=\"models\" value=\"{model}\"> <span>
-</span></label>
-</div></label> <button type=\"submit\" class=\"border border-solid bg-slate-200 rounded-xl px-4 py-2\">Submit</button></form>
-<nav class=\"bg-slate-100 p-4\"><div class=\"text-xl\">Script Validator</div></nav>
- <div class=\"container mx-auto max-w-5xl p-8\">
-<div class=\"py-4\"><h2 class=\"text-xl py-4\">Test Results:</h2><div id=\"testResults\" class=\"flex flex-col space-y-4\"></div></div></div>
