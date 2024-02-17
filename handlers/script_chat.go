@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"regexp"
 	"script_validation/llm"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -164,6 +165,7 @@ type LLMSimilarityList struct {
 type LLMSimilarity struct {
 	LLMResponse string  `json:"llm_response"`
 	Similarity  float64 `json:"similarity"`
+	LatencyMs   int64     `json:"latency_ms"`
 }
 
 func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testCount int, models []string) (*ScriptChatValidationOutput, error) {
@@ -211,6 +213,7 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 				go func(i int, userMessage openai.ChatCompletionMessage) {
 					defer wg.Done()
 
+					startTime := time.Now()
 					// Add a random delay before sending the request
 					delay := time.Duration(rand.Intn(1000)) * time.Millisecond
 					time.Sleep(delay)
@@ -230,6 +233,10 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 
 					nextMessage := input.Body.Messages[i+1]
 
+					// Capture the latency of the request
+					endTime := time.Now()
+					latency := endTime.Sub(startTime).Milliseconds()
+
 					result := Message{
 						Content:      nextMessage.Content,
 						Role:         nextMessage.Role,
@@ -238,7 +245,7 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 						LLMSimilarityList: map[string]LLMSimilarityList{
 							model: {
 								Model:        model,
-								LLMResponses: []LLMSimilarity{{LLMResponse: llm_response.Content, Similarity: similarity}},
+								LLMResponses: []LLMSimilarity{{LLMResponse: llm_response.Content, Similarity: similarity, LatencyMs: latency}},
 							},
 						},
 					}
@@ -279,6 +286,7 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 		} else {
 			for model, llmSimilarity := range result.LLMSimilarityList {
 				temp := results[i].LLMSimilarityList[model]
+				temp.Model = model
 				temp.LLMResponses = append(temp.LLMResponses, llmSimilarity.LLMResponses...)
 				results[i].LLMSimilarityList[model] = temp
 			}
@@ -291,6 +299,7 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 			continue
 		}
 		result.SetAverageSimilarity()
+		result.SortModelResults()
 	}
 
 	return &ScriptChatValidationOutput{
@@ -298,6 +307,17 @@ func PostScriptChatValidation(ctx context.Context, input *ScriptChatInput, testC
 			Messages: results,
 		},
 	}, nil
+}
+
+func (message *Message) SortModelResults() {
+	for model, value := range message.LLMSimilarityList {
+		// Sort the LLMResponses by similarity
+		sort.Slice(value.LLMResponses, func(i, j int) bool {
+			return value.LLMResponses[i].Similarity > value.LLMResponses[j].Similarity
+		})
+		message.LLMSimilarityList[model] = value
+	}
+
 }
 
 func (message *Message) SetAverageSimilarity() {

@@ -3,6 +3,7 @@ package components
 import "script_validation/handlers"
 
 import "fmt"
+import "sort"
 
 templ Layout() {
 	<html lang="en" class="w-full h-full">
@@ -21,6 +22,10 @@ templ Layout() {
 	</html>
 }
 
+templ ErrorMessage(err error) {
+	<div class="text-red-500 text-md">{ err.Error() }</div>
+}
+
 templ Nav() {
 	<nav class="bg-slate-100 p-4">
 		<div class="text-xl">Script Validator</div>
@@ -31,17 +36,42 @@ func SimilarityToString(similarity float64) string {
 	return fmt.Sprintf("%.2f", similarity*100)
 }
 
+func LatencyMsToString(latencyMs int64) string {
+	return fmt.Sprintf("%.2fs", float64(latencyMs)/1000.0)
+}
+
+func SortedLLMList(lst map[string]handlers.LLMSimilarityList) []handlers.LLMSimilarityList {
+	// Create a slice of the map's values
+	similarityList := make([]handlers.LLMSimilarityList, 0, len(lst))
+	for _, value := range lst {
+		similarityList = append(similarityList, value)
+	}
+
+	// Sort the slice by AverageSimilarity
+	sort.Slice(similarityList, func(i, j int) bool {
+		return similarityList[i].AverageSimilarity > similarityList[j].AverageSimilarity
+	})
+
+	// Return the sorted slice
+	return similarityList
+}
+
 templ TestResult(msg handlers.Message) {
-	for model, v := range msg.LLMSimilarityList {
-		<div class="py-2">
-			<div class="text-md">
-				<b>{ model }: </b>
-				<span>{ SimilarityToString(v.AverageSimilarity) }% Accuracy</span>
+	for _, v := range SortedLLMList(msg.LLMSimilarityList) {
+		<details>
+			<summary class="text-md">
+				<b>{ v.Model }: </b>
+				<span>{ SimilarityToString(v.AverageSimilarity) }%</span>
+			</summary>
+			<div class="flex flex-col space-y-2">
+				for _, v := range v.LLMResponses {
+					<div class="text-md flex space-x-2">
+						<div>{ SimilarityToString(v.Similarity) }%: <br/> { LatencyMsToString(v.LatencyMs) }</div>
+						<div class="w-full">{ v.LLMResponse }</div>
+					</div>
+				}
 			</div>
-			for _, v := range v.LLMResponses {
-				<div class="text-md">{ v.LLMResponse }</div>
-			}
-		</div>
+		</details>
 	}
 }
 

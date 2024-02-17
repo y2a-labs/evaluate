@@ -42,30 +42,30 @@ func GetResultsList(c *fiber.Ctx) error {
 	testCountStr := c.FormValue("test-count")
 	testCount, err := strconv.Atoi(testCountStr)
 	if err != nil {
-		return err
+		return Render(c, components.ErrorMessage(err))
 	}
 
 	form, err := c.MultipartForm()
 	if err != nil {
-		return err
+		return Render(c, components.ErrorMessage(err))
 	}
 
 	models := form.Value["models"]
 	if len(models) == 0 {
-		return fmt.Errorf("no models provided")
+		return Render(c, components.ErrorMessage(fmt.Errorf("no models provided")))
 	}
 
 	fmt.Println(models)
 
 	payload, err := getPayloadFromYAML("./scripts/" + filename)
 	if err != nil {
-		return err
+		return Render(c, components.ErrorMessage(err))
 	}
 	fmt.Println(models)
 
 	resp, err := handlers.PostScriptChatValidation(context.Background(), payload, testCount, models)
 	if err != nil {
-		return err
+		return Render(c, components.ErrorMessage(err))
 	}
 
 	fmt.Println("Recieved the results, now rendering the results page")

@@ -35,7 +35,7 @@ func ValidationForm() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/post-script\" class=\"flex flex-col space-y-2\" hx-target=\"#testResults\" hx-swap=\"innerHTML\" enctype=\"multipart/form-data\"><label for=\"test-count\"><span>Test Count</span> <input type=\"number\" name=\"test-count\" class=\"rounded-xl\" placeholder=\"Enter how many tests to run\" value=\"1\"></label> <label for=\"filename\"><span>Filename</span> <input type=\"text\" name=\"filename\" class=\"rounded-xl\" placeholder=\"Enter the yaml file name\" value=\"script.yaml\"></label><div for=\"models\"><span class=\"text-lg\">Models:</span><div class=\"grid lg:grid-cols-2 gap-4\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/post-script\" class=\"flex flex-col space-y-2\" hx-target=\"#testResults\" hx-swap=\"innerHTML\" enctype=\"multipart/form-data\"><label for=\"test-count\"><span>Test Count</span> <input type=\"number\" name=\"test-count\" class=\"rounded-xl\" placeholder=\"Enter how many tests to run\" value=\"1\"></label> <label for=\"filename\"><span>Filename</span> <input type=\"text\" name=\"filename\" class=\"rounded-xl\" placeholder=\"Enter the yaml file name\" value=\"script.yaml\"></label><div><span class=\"text-lg\">Models:</span><div class=\"grid lg:grid-cols-2 gap-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

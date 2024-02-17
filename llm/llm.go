@@ -67,7 +67,7 @@ func GetLLMResponse(client *openai.Client, messages []openai.ChatCompletionMessa
 		Temperature: 0.7,
 	})
 	if err != nil {
-		panic(err)
+		return openai.ChatCompletionMessage{}, err
 	}
 	return resp.Choices[0].Message, nil
 }
