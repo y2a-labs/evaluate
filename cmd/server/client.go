@@ -4,38 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"os"
-	"script_validation/handlers"
+	apihandlers "script_validation/api/handlers"
+	webhandlers "script_validation/web/handlers"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
-	"gopkg.in/yaml.v2"
 )
-
-func getPayloadFromYAML(filename string) (*handlers.ScriptChatInput, error) {
-	// Open the file
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Read the file
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Unmarshal the YAML data into the Body field of a ScriptChatInput struct
-	payload := &handlers.ScriptChatInput{}
-	err = yaml.Unmarshal(data, &payload.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
-	}
-
-	return payload, nil
-}
 
 func getUserMessage(messages []openai.ChatCompletionMessage) ([]openai.ChatCompletionMessage, error) {
 	if len(messages) > 0 && messages[len(messages)-1].Role == "assistant" {
@@ -65,7 +40,7 @@ func PrintPreviousChat(messages []openai.ChatCompletionMessage) {
 }
 
 func PostScriptClient() {
-	payload, err := getPayloadFromYAML("./scripts/air_script.yaml")
+	payload, err := webhandlers.GetPayloadFromYAML("./scripts/air_script.yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -82,7 +57,7 @@ func PostScriptClient() {
 			return
 		}
 
-		resp, err := handlers.PostScriptChat(context.Background(), payload)
+		resp, err := apihandlers.PostScriptChat(context.Background(), payload)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -98,15 +73,12 @@ func PostScriptClient() {
 }
 
 func PostScriptValidationClient() {
-	payload, err := getPayloadFromYAML("./scripts/air_script.yaml")
+	payload, err := webhandlers.GetPayloadFromYAML("./scripts/air_script.yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	testCount := 1
-	models := []string{"undi95/toppy-m-7b"}
-	_, err = handlers.PostScriptChatValidation(context.Background(), payload, testCount, models)
+	_, err = apihandlers.PostScriptChatValidation(context.Background(), payload)
 	if err != nil {
 		fmt.Println(err)
 		return

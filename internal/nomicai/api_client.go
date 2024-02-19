@@ -4,8 +4,11 @@ package nomicai
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"math"
 	"net/http"
+	"os"
 )
 
 // TaskType defines the allowed task types for the Embed Text API.
@@ -29,6 +32,48 @@ type EmbedTextRequest struct {
 type EmbedTextResponse struct {
 	Embeddings [][]float64    `json:"embeddings"`
 	Usage      map[string]int `json:"usage"` // Assuming usage is a map with "total_tokens" key
+}
+
+// cosineSimilarity calculates the cosine similarity between two float slices.
+func CosineSimilarity(a, b []float64) (float64, error) {
+	if len(a) != len(b) {
+		return 0, fmt.Errorf("slices must be of the same length")
+	}
+
+	dotProduct := 0.0
+	magA := 0.0
+	magB := 0.0
+
+	for i := range a {
+		dotProduct += a[i] * b[i] // Calculate dot product
+		magA += a[i] * a[i]       // Sum for magnitude of a
+		magB += b[i] * b[i]       // Sum for magnitude of b
+	}
+
+	magA = math.Sqrt(magA) // Calculate magnitude of a
+	magB = math.Sqrt(magB) // Calculate magnitude of b
+
+	if magA == 0 || magB == 0 {
+		return 0, fmt.Errorf("one or both of the vectors are zero vectors")
+	}
+
+	return dotProduct / (magA * magB), nil // Calculate cosine similarity
+}
+
+func GetTextSimilarity(text1 string, text2 string) (float64, error) {
+	embeddings, err := EmbedText(
+		os.Getenv("NOMIC_API_KEY"),
+		[]string{text1, text2},
+		Clustering,
+	)
+	if err != nil {
+		return 0, err
+	}
+	similarity, err := CosineSimilarity(embeddings.Embeddings[0], embeddings.Embeddings[1])
+	if err != nil {
+		panic(err)
+	}
+	return similarity, nil
 }
 
 // EmbedText sends texts to the Nomic AI Embed Text API for a specific task and returns the embedded representations.
