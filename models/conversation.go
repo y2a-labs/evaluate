@@ -1,31 +1,28 @@
 package models
 
-import "gorm.io/gorm"
-
 type Conversation struct {
 	Name string `json:"name"`
 }
 
 type ConversationModel struct {
-	gorm.Model
+	BaseModel
 	Conversation
 }
 
 type CreateConversationInput struct {
-	Body Conversation `json:"body"`
+	Body CreateConversationInputBody `json:"body"`
+}
+
+type CreateConversationInputBody struct {
+	Conversation
+	Messages []Msg `json:"messages"`
 }
 
 type CreateConversationOutput struct {
-	Body ConversationModel `json:"body"`
+	Body CreateConversationOutputBody `json:"body"`
 }
 
-type Message struct {
-	Role           string `db:"role" json:"role"`
-	Content        string `db:"content" json:"content"`
-	ConversationId string `db:"conversation_id" json:"conversation_id"`
-}
-
-type MessageModel struct {
-	gorm.Model
-	Message
+type CreateConversationOutputBody struct {
+	Conversation ConversationModel `json:"conversation"`
+	Messages     []MessageModel    `json:"messages"`
 }
