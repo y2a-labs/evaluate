@@ -10,12 +10,12 @@ import "context"
 import "io"
 import "bytes"
 
-type Model struct {
+type llm struct {
 	Name    string
 	Checked bool
 }
 
-var models = []Model{
+var llms = []llm{
 	{Name: "openchat/openchat-7b", Checked: true},
 	{Name: "undi95/toppy-m-7b", Checked: true},
 	{Name: "gryphe/mythomax-l2-13b", Checked: false},
@@ -39,7 +39,7 @@ func ValidationForm() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, model := range models {
+		for _, model := range llms {
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<label for=\"models\"><input type=\"checkbox\" name=\"models\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

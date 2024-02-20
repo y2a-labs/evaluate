@@ -14,7 +14,7 @@ func SetupWebRoutes(app *fiber.App) {
 		return web.Render(c, pages.Home())
 	})
 
-	app.Post("/post-script", webhandlers.GetResultsList)
-
 	app.Get("/conversations/:id", webhandlers.ConversationsHandler)
+
+	app.Get("/conversations", webhandlers.GetConversationsHandler)
 }

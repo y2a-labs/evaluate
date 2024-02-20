@@ -1,12 +1,9 @@
 package models
 
 type Conversation struct {
-	Name string `json:"name"`
-}
-
-type ConversationModel struct {
 	BaseModel
-	Conversation
+	Name     string    `json:"name"`
+	Messages []Message `json:"-"`
 }
 
 type CreateConversationInput struct {
@@ -14,15 +11,28 @@ type CreateConversationInput struct {
 }
 
 type CreateConversationInputBody struct {
-	Conversation
-	Messages []Msg `json:"messages"`
+	Name     string        `json:"name"`
+	Messages []ChatMessage `json:"messages"`
 }
 
 type CreateConversationOutput struct {
-	Body CreateConversationOutputBody `json:"body"`
+	Body APIConversationOutput `json:"body"`
 }
 
-type CreateConversationOutputBody struct {
-	Conversation ConversationModel `json:"conversation"`
-	Messages     []MessageModel    `json:"messages"`
+type APIConversationOutput struct {
+	BaseModel
+	Name     string        `json:"name"`
+	Messages []ChatMessage `json:"messages"`
+}
+
+type GetConversationInput struct {
+	Id string `path:"id"`
+}
+
+type GetConversationOutput struct {
+	Body APIConversationOutput `json:"body"`
+}
+
+type GetConversationOutputBody struct {
+	Conversation
 }

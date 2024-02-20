@@ -1,12 +1,6 @@
 package apihandlers
 
 import (
-	"context"
-	"fmt"
-	"regexp"
-	"script_validation/internal/llm"
-	"strings"
-
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -41,100 +35,6 @@ type ScriptChatOutput struct {
 type ScriptChatOutputBody struct {
 	Messages  []openai.ChatCompletionMessage `json:"messages"`
 	TaskIndex int
-}
-
-func parseSystemMessage(script *Script, task Task) (string, error) {
-	systemPrompt := script.SystemPromptString
-
-	replacements := map[string]string{
-		"{goal}":      task.Goal,
-		"{intro}":     task.Intro,
-		"{condition}": task.Condition,
-		"{character}": script.Character,
-	}
-
-	// Check for unknown placeholders
-	re := regexp.MustCompile(`\{.*?\}`)
-	matches := re.FindAllString(systemPrompt, -1)
-	for _, match := range matches {
-		if _, ok := replacements[match]; !ok {
-			return "", fmt.Errorf("unknown variable %s in the system prompt", match)
-		}
-	}
-
-	// Replace known placeholders
-	for placeholder, value := range replacements {
-		systemPrompt = strings.Replace(systemPrompt, placeholder, value, -1)
-	}
-
-	return systemPrompt, nil
-}
-
-func setSystemMessage(messages []openai.ChatCompletionMessage, systemMessage string) []openai.ChatCompletionMessage {
-	// Checks if the first message is the system message
-	if messages[0].Role == "system" {
-		messages[0].Content = systemMessage
-	} else {
-		// Sets the system message as the first message
-		messages = append([]openai.ChatCompletionMessage{{Role: "system", Content: systemMessage}}, messages...)
-	}
-
-	return messages
-}
-
-func PostScriptChat(ctx context.Context, input *ScriptChatInput) (*ScriptChatOutput, error) {
-	// Parse the system message
-	task := input.Body.Script.Task[input.Body.TaskIndex]
-	systemMessage, err := parseSystemMessage(&input.Body.Script, task)
-	if err != nil {
-		return &ScriptChatOutput{}, err
-	}
-
-	// Sets the messages and exits if there are no messages
-	if len(input.Body.Messages) == 0 {
-		messages := []openai.ChatCompletionMessage{
-			{Role: "system", Content: systemMessage},
-			{Role: "assistant", Content: task.Intro},
-		}
-
-		return &ScriptChatOutput{
-			Body: ScriptChatOutputBody{
-				Messages:  messages,
-				TaskIndex: input.Body.TaskIndex,
-			},
-		}, nil
-	} else {
-		input.Body.Messages = setSystemMessage(input.Body.Messages, systemMessage)
-
-		// Check to see if the last message is from the assistant
-		if input.Body.Messages[len(input.Body.Messages)-1].Role == "assistant" {
-			return &ScriptChatOutput{
-				Body: ScriptChatOutputBody{
-					Messages:  input.Body.Messages,
-					TaskIndex: input.Body.TaskIndex,
-				},
-			}, nil
-		}
-	}
-
-	// Create the LLM Client
-	llm_client := llm.GetLLMClient(map[string]string{})
-
-	message, err := llm.GetLLMResponse(llm_client, input.Body.Messages, input.Body.Models[0])
-	if err != nil {
-		return &ScriptChatOutput{}, err
-	}
-
-	input.Body.Messages = append(input.Body.Messages, message)
-
-	result := &ScriptChatOutput{
-		Body: ScriptChatOutputBody{
-			Messages:  input.Body.Messages,
-			TaskIndex: 0,
-		},
-	}
-
-	return result, nil
 }
 
 type ScriptChatValidationOutput struct {

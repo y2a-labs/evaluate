@@ -1,0 +1,23 @@
+package pages
+
+import "script_validation/models"
+
+templ ConversationsPage(conversations []models.Conversation) {
+	@Layout() {
+		@Nav()
+		<div class="container mx-auto max-w-4xl py-8 px-4">
+			<div class="py-4 grid gap-2 lg:cols-2" id="conversations">
+				for _, conversation := range conversations {
+					@ConversationCard(conversation)
+				}
+			</div>
+		</div>
+	}
+}
+
+templ ConversationCard(conversation models.Conversation) {
+	<div class="p-4 bg-slate-200">
+		<a href={ templ.URL("conversations/" + conversation.ID) }>{ conversation.Name } </a>
+		<p>{ conversation.ID }</p>
+	</div>
+}

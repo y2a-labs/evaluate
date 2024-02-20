@@ -13,18 +13,11 @@ func SetupAPIRoutes(app *fiber.App) {
 	api := humafiber.New(app, huma.DefaultConfig("My API", "1.0"))
 
 	huma.Register(api, huma.Operation{
-		OperationID: "post-chat",
-		Summary:     "Post a chat",
-		Method:      http.MethodPost,
-		Path:        "/v1/api/script-chat",
-	}, apihandlers.PostScriptChat)
-
-	huma.Register(api, huma.Operation{
-		OperationID: "evaluate-conversation",
-		Summary:     "Evaluate a Conversation",
+		OperationID: "create-evaluation",
+		Summary:     "Create LLM Evaluation",
 		Method:      http.MethodPost,
 		Path:        "/v1/api/conversations/{id}/evaluate",
-	}, apihandlers.PostScriptChatValidation)
+	}, apihandlers.CreateLLMEvaluation)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "create-conversation",
@@ -32,4 +25,11 @@ func SetupAPIRoutes(app *fiber.App) {
 		Method:      http.MethodPost,
 		Path:        "/v1/api/conversations",
 	}, apihandlers.CreateConversation)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-conversation",
+		Summary:     "Get a Conversation",
+		Method:      http.MethodGet,
+		Path:        "/v1/api/conversations/{id}",
+	}, apihandlers.GetConversation)
 }

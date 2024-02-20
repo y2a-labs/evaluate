@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"script_validation/models"
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -35,14 +36,6 @@ func (c *CustomTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return c.Transport.RoundTrip(clonedRequest)
 }
 
-type RateLimit struct {
-	requests int
-}
-
-func GetRateLimit() {
-
-}
-
 func GetLLMClient(customHeaders map[string]string) *openai.Client {
 	godotenv.Load()
 	cid := uuid.New().String()
@@ -54,32 +47,33 @@ func GetLLMClient(customHeaders map[string]string) *openai.Client {
 	return openai.NewClientWithConfig(config)
 }
 
-func GetLLMResponse(client *openai.Client, messages []openai.ChatCompletionMessage, model string) (openai.ChatCompletionMessage, error) {
+func GetLLMResponse(client *openai.Client, messages []models.ChatMessage, model string) (models.ChatMessage, error) {
 
 	// Throw an error if the last message is from the assistant
 	if len(messages) > 0 && messages[len(messages)-1].Role == "assistant" {
-		return openai.ChatCompletionMessage{}, fmt.Errorf("err: the last message must be from the user")
+		return models.ChatMessage{}, fmt.Errorf("err: the last message must be from the user")
+	}
+
+	oai_messages := []openai.ChatCompletionMessage{}
+
+	for _, message := range messages {
+		oai_messages = append(oai_messages, openai.ChatCompletionMessage{
+			Role:    message.Role,
+			Content: message.Content,
+		})
 	}
 
 	resp, err := client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model:       model,
-		Messages:    messages,
+		Messages:    oai_messages,
 		Temperature: 0.7,
 	})
 	if err != nil {
-		return openai.ChatCompletionMessage{}, err
+		return models.ChatMessage{}, err
 	}
-	return resp.Choices[0].Message, nil
-}
 
-func GetUsersMessageVariant(client *openai.Client, message string) openai.ChatCompletionMessage {
-	user_variant_messages := []openai.ChatCompletionMessage{
-		{Role: "system", Content: "Create a variant of the following message."},
-		{Role: "user", Content: "Create a variant of the following message. You are not an assistant. Do not ask if the user has any questions.\n\n" + message},
-	}
-	resp, err := GetLLMResponse(client, user_variant_messages, "openchat/openchat-7b")
-	if err != nil {
-		panic(err)
-	}
-	return resp
+	return models.ChatMessage{
+		Role:    resp.Choices[0].Message.Role,
+		Content: resp.Choices[0].Message.Content,
+	}, nil
 }

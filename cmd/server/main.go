@@ -15,9 +15,9 @@ func main() {
 
 	app.Use(logger.New())
 
-	database.ConnectDB()
+	database.ConnectDB("test.db")
 
-	app.Static("/", "./public")
+	app.Static("/static", "./public")
 	apiroutes.SetupAPIRoutes(app)
 	webroutes.SetupWebRoutes(app)
 

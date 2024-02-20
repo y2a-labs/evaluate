@@ -1,17 +1,6 @@
 package main
 
-import (
-	"bufio"
-	"context"
-	"fmt"
-	"os"
-	apihandlers "script_validation/api/handlers"
-	webhandlers "script_validation/web/handlers"
-	"strings"
-
-	"github.com/sashabaranov/go-openai"
-)
-
+/*
 func getUserMessage(messages []openai.ChatCompletionMessage) ([]openai.ChatCompletionMessage, error) {
 	if len(messages) > 0 && messages[len(messages)-1].Role == "assistant" {
 		fmt.Print("User: ")
@@ -78,9 +67,10 @@ func PostScriptValidationClient() {
 		fmt.Println(err)
 		return
 	}
-	_, err = apihandlers.PostScriptChatValidation(context.Background(), payload)
+	_, err = apihandlers.CreateLLMEvaluation(context.Background(), payload)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 }
+*/

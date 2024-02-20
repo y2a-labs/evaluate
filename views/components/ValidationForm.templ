@@ -1,11 +1,11 @@
 package components
 
-type Model struct {
+type llm struct {
 	Name    string
 	Checked bool
 }
 
-var models = []Model{
+var llms = []llm{
 	{Name: "openchat/openchat-7b", Checked: true},
 	{Name: "undi95/toppy-m-7b", Checked: true},
 	{Name: "gryphe/mythomax-l2-13b", Checked: false},
@@ -25,7 +25,7 @@ templ ValidationForm() {
 		<div>
 			<span class="text-lg">Models:</span>
 			<div class="grid lg:grid-cols-2 gap-4">
-				for _, model := range models {
+				for _, model := range llms {
 					<label for="models">
 						<input type="checkbox" name="models" checked?={ model.Checked } value={ model.Name }/>
 						<span>{ model.Name }</span>
