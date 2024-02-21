@@ -3,7 +3,6 @@ package webhandlers
 import (
 	"fmt"
 	database "script_validation"
-	apihandlers "script_validation/api/handlers"
 	"script_validation/models"
 	"script_validation/views/components"
 	"script_validation/views/pages"
@@ -24,25 +23,32 @@ func ConversationsHandler(c *fiber.Ctx) error {
 		return web.Render(c, components.ErrorMessage(fmt.Errorf("invalid conversation id: %s", id)))
 	}
 
-	conversation, err := apihandlers.GetConversation(nil, &models.GetConversationInput{Id: id})
+	// Get the conversation
+	conversation := &models.Conversation{}
 
-	if err != nil {
-		return web.Render(c, components.ErrorMessage(err))
-	}
-
-	return web.Render(c, pages.ConversationPage(conversation.Body))
-}
-
-func GetConversationsHandler(c *fiber.Ctx) error {
-	var conversations []models.Conversation
-
-	r := database.DB.Limit(15).Preload("Messages", func(db *gorm.DB) *gorm.DB {
-		return db.Order("message_index ASC")
-	}).Find(&conversations)
+	r := database.DB.
+		Preload("Messages.MessageEvaluations", func(db *gorm.DB) *gorm.DB {
+			return db.Where("average_similarity > 0").Order("created_at DESC").Preload("MessageEvaluationResults").Preload("LLM")
+		}).
+		First(&conversation, "conversations.id = ?", id)
 
 	if r.Error != nil {
 		return web.Render(c, components.ErrorMessage(r.Error))
 	}
 
-	return web.Render(c, pages.ConversationsPage(conversations))
+	return web.Render(c, pages.ConversationPage(conversation))
+}
+
+func GetConversationListHandler(c *fiber.Ctx) error {
+	var conversations []models.Conversation
+
+	r := database.DB.
+		Limit(15).
+		Find(&conversations)
+
+	if r.Error != nil {
+		return web.Render(c, components.ErrorMessage(r.Error))
+	}
+
+	return web.Render(c, pages.ConversationListPage(conversations))
 }

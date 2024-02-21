@@ -16,5 +16,5 @@ func SetupWebRoutes(app *fiber.App) {
 
 	app.Get("/conversations/:id", webhandlers.ConversationsHandler)
 
-	app.Get("/conversations", webhandlers.GetConversationsHandler)
+	app.Get("/conversations", webhandlers.GetConversationListHandler)
 }

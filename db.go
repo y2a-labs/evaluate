@@ -19,8 +19,10 @@ func ConnectDB(db_name string) *gorm.DB {
 		&models.Conversation{},
 		&models.Message{},
 		&models.Prompt{},
-		&models.LLMEvaluation{},
+		&models.MessageEvaluation{},
+		&models.MessageEvaluationResult{},
 		&models.LLM{},
+		&models.Evaluation{},
 	)
 	return DB
 }

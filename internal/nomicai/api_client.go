@@ -62,7 +62,6 @@ func CosineSimilarity(a, b []float64) (float64, error) {
 
 func GetTextSimilarity(text1 string, text2 string) (float64, error) {
 	embeddings, err := EmbedText(
-		os.Getenv("NOMIC_API_KEY"),
 		[]string{text1, text2},
 		Clustering,
 	)
@@ -77,21 +76,34 @@ func GetTextSimilarity(text1 string, text2 string) (float64, error) {
 }
 
 // EmbedText sends texts to the Nomic AI Embed Text API for a specific task and returns the embedded representations.
-func EmbedText(apiKey string, texts []string, taskType TaskType) (*EmbedTextResponse, error) {
+func EmbedText(texts []string, taskType TaskType) (*EmbedTextResponse, error) {
+	apiKey := os.Getenv("NOMICAI_API_KEY")
 	apiURL := "https://api-atlas.nomic.ai/v1/embedding/text"
 
 	payload := EmbedTextRequest{
 		Texts:    texts,
 		TaskType: taskType,
 	}
+	// Validate the input
+	for _, text := range texts {
+		if len(text) == 0 {
+			return nil, fmt.Errorf("text cannot be empty")
+		}
+	}
+
+	// Validate the API key
+	if len(apiKey) == 0 {
+		return nil, fmt.Errorf("NOMICAI_API_KEY environment variable not set")
+	}
+
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -100,18 +112,18 @@ func EmbedText(apiKey string, texts []string, taskType TaskType) (*EmbedTextResp
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	embeddingResponse := &EmbedTextResponse{}
 	derr := json.NewDecoder(resp.Body).Decode(embeddingResponse)
 	if derr != nil && derr != io.EOF {
-		panic(derr)
+		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		panic(resp.Status)
+		return nil, fmt.Errorf("error: nomicai %s", resp.Status)
 	}
 	return embeddingResponse, nil
 }
