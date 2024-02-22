@@ -77,7 +77,6 @@ func CreateConversationAPI(ctx context.Context, input *models.CreateConversation
 		messages[i] = models.APIChatMessage{
 			ChatMessage: message,
 			ID:          conversation.Messages[i].ID,
-			Embedding: conversation.Messages[i].Embedding,
 		}
 	}
 
@@ -95,7 +94,7 @@ func CreateConversationAPI(ctx context.Context, input *models.CreateConversation
 	}, nil
 }
 
-func GetConversation(ctx context.Context, id string) (*models.Conversation, error) {
+func GetConversation(id string) (*models.Conversation, error) {
 	// Get the conversation
 	conversation := models.Conversation{}
 
@@ -111,7 +110,7 @@ func GetConversation(ctx context.Context, id string) (*models.Conversation, erro
 
 func GetConversationAPI(ctx context.Context, input *models.GetConversationInput) (*models.CreateConversationOutput, error) {
 	// Get the conversation
-	conversation, err := GetConversation(ctx, input.Id)
+	conversation, err := GetConversation(input.Id)
 
 	if err != nil {
 		return nil, err
@@ -119,11 +118,11 @@ func GetConversationAPI(ctx context.Context, input *models.GetConversationInput)
 
 	// Turn Messages into ChatMessages
 	messages := make([]models.APIChatMessage, len(conversation.Messages))
+
 	for i, message := range conversation.Messages {
 		messages[i] = models.APIChatMessage{
 			ChatMessage: message.ChatMessage,
 			ID:          message.ID,
-			Embedding:  message.Embedding,
 		}
 	}
 

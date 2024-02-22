@@ -8,5 +8,5 @@ type MessageEvaluationResult struct {
 	LatencyMs           int
 	Similarity          float64
 	MessageEvaluationID string
-	Embedding           datatypes.JSONSlice[float64]
+	Embedding           datatypes.JSONSlice[float64] `"json:"-"`
 }

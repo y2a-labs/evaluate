@@ -21,6 +21,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.5.0 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.17.5 // indirect

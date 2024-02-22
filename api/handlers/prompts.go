@@ -24,7 +24,6 @@ func GetPromptByIdAPI(context context.Context, request *models.CreatePromptReque
 	return &models.FindOrCreatePromptResponse{
 		Body: models.FindOrCreatePromptResponseBody{
 			Content:   prompt.Content,
-			Embedding: prompt.Embedding,
 			BaseModel: prompt.BaseModel,
 		},
 	}, nil
@@ -58,7 +57,6 @@ func FindOrCreatePromptAPI(context context.Context ,request *models.FindOrCreate
 	return &models.FindOrCreatePromptResponse{
 		Body: models.FindOrCreatePromptResponseBody{
 			Content:   prompt.Content,
-			Embedding: prompt.Embedding,
 			BaseModel: prompt.BaseModel,
 		},
 	}, nil

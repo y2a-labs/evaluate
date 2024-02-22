@@ -66,6 +66,8 @@ func processMessage(p ProcessMessage) {
 		// Get the LLMs Response
 		messages := p.Conversation.Messages[:p.EvalMessageIndex+1]
 
+		SetSystemPrompt(&messages, p.Prompt.Content)
+
 		llm_response, err := llm.GetLLMResponse(p.LLMClient, ConvertToChatMessages(messages), p.LLM.Name)
 		if err != nil {
 			p.ErrCh <- err
@@ -73,7 +75,7 @@ func processMessage(p ProcessMessage) {
 		}
 
 		// Get the similarity
-		assistantMessage := p.Conversation.Messages[p.EvalMessageIndex+1]
+		assistantMessage := p.Conversation.Messages[p.EvalMessageIndex]
 		similarity, err := nomicai.GetTextSimilarity(llm_response.Content, assistantMessage.Content)
 		if err != nil {
 			p.ErrCh <- err
@@ -128,30 +130,82 @@ type EvaluationRoutine struct {
 	Prompt           models.Prompt
 }
 
-func GetEvaluationRoutines(conversation *models.Conversation, llms []models.LLM, prompt *models.Prompt) ([]EvaluationRoutine, error) {
-	// Get how many messages are from the user
-	useMessages := []models.Message{}
-	for _, message := range conversation.Messages {
-		if message.Role == "user" {
-			useMessages = append(useMessages, message)
+type EvaluationMessage struct {
+	models.Message
+	Prompt models.Prompt
+}
+
+func GetEvaluationRoutines(conversation *models.Conversation, req *models.CreateLLMEvaluationRequest) ([]EvaluationRoutine, error) {
+	evaluationMessages := []EvaluationMessage{}
+
+	basePrompt, err := FindOrCreatePrompt(req.Body.Prompt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 1; i < len(conversation.Messages); i++ {
+		if conversation.Messages[i].ChatMessage.Role != "assistant" {
+			continue
+		}
+
+		message := conversation.Messages[i]
+		previousIsUser := conversation.Messages[i-1].ChatMessage.Role == "user"
+
+		// Run Eval on all assistant messages
+		if previousIsUser && len(req.Body.Messages) == 0 {
+			evaluationMessages = append(evaluationMessages, EvaluationMessage{
+				Message: message,
+				Prompt:  *basePrompt,
+			})
+			continue
+		}
+		// Run eval on the provided list of messages
+		for _, reqMessage := range req.Body.Messages {
+			if message.ID == reqMessage.ID {
+				// Throw an error if its not an assistant message
+				if message.ChatMessage.Role != "assistant" {
+					return nil, fmt.Errorf("err: message with id %s is not an assistant message", message.ID)
+				}
+				// Throw an error if the previous message is not from the user
+				if !previousIsUser {
+					return nil, fmt.Errorf("err: message with id %s is not preceded by a user message", message.ID)
+				}
+				// Get the prompt
+				prompt, err := FindOrCreatePrompt(req.Body.Prompt)
+
+				if err != nil {
+					return nil, err
+				}
+				evaluationMessages = append(evaluationMessages, EvaluationMessage{
+					Message: message,
+					Prompt:  *prompt,
+				})
+			}
 		}
 	}
 
-	routineCount := len(useMessages) * len(llms)
+	// Get the LLMs
+	llms, err := FindOrCreateLLMs(req.Body.Models)
+	if err != nil || len(llms) == 0 {
+		return nil, err
+	}
+
+	routineCount := len(evaluationMessages) * len(llms)
 	if routineCount == 0 {
-		return nil, fmt.Errorf("err: no user messages in the conversation")
+		return nil, fmt.Errorf("err: no evaluation messages in the conversation")
 	}
 
 	routines := make([]EvaluationRoutine, 0, routineCount)
 
 	// Range over the user messages
-	for _, userMessage := range useMessages {
+	for _, evalMessage := range evaluationMessages {
 		for _, llm := range llms {
 			routine := EvaluationRoutine{
 				Conversation:     conversation,
-				EvalMessageIndex: userMessage.MessageIndex + 1,
+				EvalMessageIndex: evalMessage.MessageIndex,
 				LLM:              llm,
-				Prompt:           *prompt,
+				Prompt:           evalMessage.Prompt,
 			}
 
 			routines = append(routines, routine)
@@ -161,28 +215,10 @@ func GetEvaluationRoutines(conversation *models.Conversation, llms []models.LLM,
 
 }
 
-func CreateLLMEvaluationAPI(ctx context.Context, input *models.CreateLLMEvaluationRequest) (*models.CreateLLMEvaluationResponse, error) {
+func CreateLLMEvaluation(ctx context.Context, input *models.CreateLLMEvaluationRequest) (*[]models.Message, error) {
 	// Get the conversation
-
-	conversation, err := GetConversation(ctx, input.ID)
-
+	conversation, err := GetConversation(input.ID)
 	if err != nil {
-		return nil, err
-	}
-
-	// Get the prompt
-	prompt, err := FindOrCreatePrompt(input.Body.Prompt)
-
-	if err != nil || prompt.ID == "" {
-		return nil, err
-	}
-
-	// Set the system prompt
-	SetSystemPrompt(&conversation.Messages, input.Body.Prompt)
-
-	// Get the LLMs
-	llms, err := FindOrCreateLLMs(input.Body.Models)
-	if err != nil || len(llms) == 0 {
 		return nil, err
 	}
 
@@ -190,14 +226,13 @@ func CreateLLMEvaluationAPI(ctx context.Context, input *models.CreateLLMEvaluati
 	llm_client := llm.GetLLMClient(map[string]string{})
 
 	// Make a list of tests to be run
-	evaluationRoutines, err := GetEvaluationRoutines(conversation, llms, prompt)
+	evaluationRoutines, err := GetEvaluationRoutines(conversation, input)
 	if err != nil {
 		return nil, err
 	}
 
 	var wg sync.WaitGroup
 	routineCount := len(evaluationRoutines)
-	fmt.Println("Routine Count: ", routineCount)
 	errCh := make(chan error, routineCount)
 	resultsCh := make(chan models.MessageEvaluation, routineCount)
 
@@ -205,8 +240,10 @@ func CreateLLMEvaluationAPI(ctx context.Context, input *models.CreateLLMEvaluati
 		// Create the message evaluation
 		message_evaluation := models.MessageEvaluation{
 			LLMID:                    routine.LLM.ID,
+			LLM:                      routine.LLM,
 			PromptID:                 routine.Prompt.ID,
-			MessageID:                routine.Conversation.Messages[routine.EvalMessageIndex+1].ID,
+			Prompt:                   routine.Prompt,
+			MessageID:                routine.Conversation.Messages[routine.EvalMessageIndex].ID,
 			MessageEvaluationResults: make([]models.MessageEvaluationResult, input.Body.TestCount),
 		}
 		result := database.DB.Create(&message_evaluation)
@@ -232,10 +269,9 @@ func CreateLLMEvaluationAPI(ctx context.Context, input *models.CreateLLMEvaluati
 
 	for err := range errCh {
 		if err != nil {
-			return &models.CreateLLMEvaluationResponse{}, err
+			return nil, err
 		}
 	}
-	fmt.Println("Routine Count: ", routineCount)
 	evaluations := make([]models.MessageEvaluation, routineCount)
 
 	// Load the messages into the results
@@ -244,19 +280,41 @@ func CreateLLMEvaluationAPI(ctx context.Context, input *models.CreateLLMEvaluati
 		result.ComputeAverageSimilarity()
 		evaluations[i] = result
 		i++
+	}
 
-		// Store the results in the database
-		r := database.DB.Create(&result)
-		if r.Error != nil {
-			return nil, r.Error
+	// Store the results in the database
+	r := database.DB.Create(&evaluations)
+
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
+	// Return an array of messages with the results
+	for i, message := range conversation.Messages {
+		if message.ChatMessage.Role != "assistant" {
+			continue
+		}
+		// Loop through the evaluations and find the one that matches the message
+		for _, evaluation := range evaluations {
+			if evaluation.MessageID == message.ID {
+				conversation.Messages[i].MessageEvaluations = append(conversation.Messages[i].MessageEvaluations, evaluation)
+				// Remove the message evaluation from the array
+				evaluations = append(evaluations[:i-1], evaluations[i:]...)
+			}
 		}
 	}
 
-	fmt.Println("ran this far", i)
+	return &conversation.Messages, nil
+}
 
+func CreateLLMEvaluationAPI(ctx context.Context, input *models.CreateLLMEvaluationRequest) (*models.CreateLLMEvaluationResponse, error) {
+	messages, err := CreateLLMEvaluation(ctx, input)
+	if err != nil {
+		return nil, err
+	}
 	return &models.CreateLLMEvaluationResponse{
 		Body: models.CreateLLMEvaluationResponseBody{
-			Results: &evaluations,
+			Messages: messages,
 		},
-	}, err
+	}, nil
 }

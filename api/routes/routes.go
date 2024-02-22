@@ -27,11 +27,11 @@ func NewResponse(config *huma.Config, i interface{}) *huma.Response {
 	}
 }
 
-func NewRequestBody(config *huma.Config, i interface{}) *huma.RequestBody {
+func NewRequestBody(config *huma.Config,content_type string, i interface{}) *huma.RequestBody {
 	schema := huma.SchemaFromType(config.Components.Schemas, reflect.TypeOf(i))
 	return &huma.RequestBody{
 		Content: map[string]*huma.MediaType{
-			"application/json": {
+			content_type: {
 				Schema: schema,
 			},
 		},
@@ -70,18 +70,4 @@ func SetupAPIRoutes(app *fiber.App) {
 			"200": NewResponse(&config, models.GetConversationResponseValidation{}),
 		},
 	}, apihandlers.GetConversationAPI)
-
-	huma.Register(api, huma.Operation{
-		OperationID: "find-or-create-prompt",
-		Summary:     "Find or Create a Prompt",
-		Method:      http.MethodPost,
-		Path:        "/v1/api/prompts",
-	}, apihandlers.FindOrCreatePromptAPI)
-
-	huma.Register(api, huma.Operation{
-		OperationID: "get-prompt-by-id",
-		Summary:     "Get Prompt by ID",
-		Method:      http.MethodPost,
-		Path:        "/v1/api/prompts/{id}",
-	}, apihandlers.GetPromptByIdAPI)
 }

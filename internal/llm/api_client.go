@@ -2,7 +2,6 @@ package llm
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"script_validation/models"
@@ -48,11 +47,6 @@ func GetLLMClient(customHeaders map[string]string) *openai.Client {
 }
 
 func GetLLMResponse(client *openai.Client, messages []models.ChatMessage, model string) (models.ChatMessage, error) {
-
-	// Throw an error if the last message is from the assistant
-	if len(messages) > 0 && messages[len(messages)-1].Role == "assistant" {
-		return models.ChatMessage{}, fmt.Errorf("err: the last message must be from the user")
-	}
 
 	oai_messages := []openai.ChatCompletionMessage{}
 

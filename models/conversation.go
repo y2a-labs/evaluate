@@ -28,7 +28,6 @@ type APIConversationOutput struct {
 type APIChatMessage struct {
 	ChatMessage
 	ID string `json:"id"`
-	Embedding []float64 `json:"embedding" required:"true"`
 }
 
 type GetConversationInput struct {

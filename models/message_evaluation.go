@@ -2,12 +2,12 @@ package models
 
 type MessageEvaluation struct {
 	BaseModel
-	MessageID                string
 	AverageSimilarity        float64
+	MessageID                string
 	LLM                      LLM
 	LLMID                    string
-	Prompt                   Prompt
 	PromptID                 string
+	Prompt                   Prompt
 	MessageEvaluationResults []MessageEvaluationResult
 }
 
@@ -23,9 +23,13 @@ func (me *MessageEvaluation) ComputeAverageSimilarity() {
 type CreateLLMEvaluationRequest struct {
 	ID   string `path:"id"`
 	Body struct {
-		Models    []string `json:"models" default:"openchat/openchat-7b"`
-		TestCount int      `json:"test_count" minimum:"1" maximum:"10" default:"1"`
-		Prompt    string   `json:"prompt" default:"You are a helpful assistant."`
+		Models    []string `json:"models" default:"openchat/openchat-7b" required:"true"`
+		TestCount int      `json:"test_count" minimum:"1" maximum:"10" default:"1" required:"true"`
+		Prompt    string   `json:"prompt" example:"You are a helpful assistant."`
+		Messages  []struct {
+			ID     string `json:"id"`
+			Prompt string `json:"prompt"`
+		} `json:"messages,omitempty"`
 	}
 }
 
@@ -34,31 +38,11 @@ type CreateLLMEvaluationResponse struct {
 }
 
 type CreateLLMEvaluationResponseBody struct {
-	Results *[]MessageEvaluation `json:"results"`
+	Messages *[]Message `json:"messages"`
 }
-
-
 
 type CreateLLMEvaluationResponseValidation struct {
 	Body struct {
-		ID                string  `json:"id"`
+		ID string `json:"id"`
 	}
 }
-
-/*
-		MessageID         string  `json:"message_id"`
-		AverageSimilarity float64 `json:"average_similarity"`
-		LLM               struct {
-			Name string `json:"name"`
-		} `json:"llm"`
-		Prompt struct {
-			Content string `json:"content"`
-		} `json:"prompt"`
-		Results []struct {
-			ID                  string  `json:"id"`
-			Content             string  `json:"content"`
-			LatencyMs           int     `json:"latency_ms"`
-			Similarity          float64 `json:"similarity"`
-			MessageEvaluationID string  `json:"message_evaluation_id"`
-		} `json:"results"`
-		*/

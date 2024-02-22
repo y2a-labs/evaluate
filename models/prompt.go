@@ -26,6 +26,5 @@ type FindOrCreatePromptResponse struct {
 
 type FindOrCreatePromptResponseBody struct {
 	Content   string    `json:"content"`
-	Embedding []float64 `json:"embedding"`
 	BaseModel
 }

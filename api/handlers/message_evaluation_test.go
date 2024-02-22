@@ -2,10 +2,13 @@ package apihandlers
 
 import (
 	"context"
+	"log"
 	"reflect"
 	database "script_validation"
 	"script_validation/models"
 	"testing"
+
+	"github.com/joho/godotenv"
 )
 
 func Test_processMessage(t *testing.T) {
@@ -21,32 +24,6 @@ func Test_processMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			processMessage(tt.args.p)
-		})
-	}
-}
-
-func TestFindOrCreatePrompt(t *testing.T) {
-	type args struct {
-		text string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *models.Prompt
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := FindOrCreatePrompt(tt.args.text)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FindOrCreatePrompt() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FindOrCreatePrompt() = %v, want %v", got, tt.want)
-			}
 		})
 	}
 }
@@ -79,6 +56,7 @@ func TestCreateLLMEvaluation(t *testing.T) {
 }
 
 func TestFindOrCreateLLMs(t *testing.T) {
+	godotenv.Load()
 	database.ConnectDB(":memory:")
 	llms := []models.LLM{
 		{
@@ -221,10 +199,47 @@ func TestSetSystemPrompt(t *testing.T) {
 }
 
 func TestGetEvaluationRoutines(t *testing.T) {
+	err := godotenv.Load("../../.env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	database.ConnectDB(":memory:")
+	conversation := models.Conversation{
+		Name: "Test Conversation",
+		Messages: []models.Message{
+			{
+				ChatMessage: models.ChatMessage{
+					Role:    "user",
+					Content: "test content",
+				},
+			},
+			{
+				ChatMessage: models.ChatMessage{
+					Role:    "assistant",
+					Content: "Hello!",
+				},
+			},
+		},
+	}
+	req := &models.CreateLLMEvaluationRequest{
+		Body: struct {
+			Models    []string "json:\"models\" default:\"openchat/openchat-7b\" required:\"true\""
+			TestCount int      "json:\"test_count\" minimum:\"1\" maximum:\"10\" default:\"1\" required:\"true\""
+			Prompt    string   "json:\"prompt\" example:\"You are a helpful assistant.\""
+			Messages  []struct {
+				ID     string "json:\"id\""
+				Prompt string "json:\"prompt\""
+			} "json:\"messages,omitempty\""
+		}{
+			Models:    []string{"openchat/openchat-7b"},
+			TestCount: 1,
+			Prompt:    "You are a helpful assistant.",
+			//Messages: []struct{ID string "json:\"id\""; Prompt string "json:\"prompt\""}{},
+		},
+	}
 	type args struct {
 		conversation *models.Conversation
-		llms         []models.LLM
-		prompt       *models.Prompt
+		req          *models.CreateLLMEvaluationRequest
 	}
 	tests := []struct {
 		name    string
@@ -232,17 +247,53 @@ func TestGetEvaluationRoutines(t *testing.T) {
 		want    []EvaluationRoutine
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Test GetEvaluationRoutines",
+			args: args{
+				conversation: &conversation,
+				req:          req,
+			},
+			want: []EvaluationRoutine{
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetEvaluationRoutines(tt.args.conversation, tt.args.llms, tt.args.prompt)
+			got, err := GetEvaluationRoutines(tt.args.conversation, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetEvaluationRoutines() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			if len(got) != 1 {
+				t.Errorf("GetEvaluationRoutines() = %v, want %v", len(got), len(conversation.Messages)-1)
+			}
+		})
+	}
+}
+
+func TestCreateLLMEvaluationAPI(t *testing.T) {
+	type args struct {
+		ctx   context.Context
+		input *models.CreateLLMEvaluationRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *models.CreateLLMEvaluationResponse
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CreateLLMEvaluationAPI(tt.args.ctx, tt.args.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateLLMEvaluationAPI() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetEvaluationRoutines() = %v, want %v", got, tt.want)
+				t.Errorf("CreateLLMEvaluationAPI() = %v, want %v", got, tt.want)
 			}
 		})
 	}
