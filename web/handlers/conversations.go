@@ -28,7 +28,7 @@ func ConversationsHandler(c *fiber.Ctx) error {
 
 	r := database.DB.
 		Preload("Messages.MessageEvaluations", func(db *gorm.DB) *gorm.DB {
-			return db.Where("average_similarity > 0").Order("created_at DESC").Preload("MessageEvaluationResults").Preload("LLM")
+			return db.Where("average_similarity > 0").Order("average_similarity DESC").Limit(5).Preload("MessageEvaluationResults").Preload("LLM").Preload("Prompt")
 		}).
 		First(&conversation, "conversations.id = ?", id)
 

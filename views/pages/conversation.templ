@@ -9,7 +9,7 @@ templ ConversationPage(conversation *models.Conversation) {
 		@Nav()
 		<div class="container mx-auto max-w-4xl py-8 px-4">
 			<div class="py-4">
-				@components.ValidationForm()
+				@components.ValidationForm(conversation)
 				<div class="text-xl align-center">
 					{ conversation.Name }
 				</div>
@@ -35,13 +35,14 @@ templ Messages(messages []models.Message) {
 	</div>
 }
 
-templ Evaluation (evaluation models.MessageEvaluation, index int) {
+templ Evaluation(evaluation models.MessageEvaluation, index int) {
 	<details open?={ index == 0 }>
 		<summary class="text-md">
 			<b>{ evaluation.LLM.Name }: </b>
 			<span>{ fmt.Sprintf("%.2f", evaluation.AverageSimilarity*100) }%</span>
 		</summary>
 		<div class="flex flex-col space-y-2">
+			Prompt: { evaluation.Prompt.Content }
 			for _, result := range evaluation.MessageEvaluationResults {
 				<div class="text-md flex space-x-2">
 					<div>{ SimilarityToString(result.Similarity) }%: <br/> { LatencyMsToString(result.LatencyMs) }</div>

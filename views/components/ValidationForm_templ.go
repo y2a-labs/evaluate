@@ -10,6 +10,9 @@ import "context"
 import "io"
 import "bytes"
 
+import "fmt"
+import "script_validation/models"
+
 type llm struct {
 	Name    string
 	Checked bool
@@ -22,7 +25,16 @@ var llms = []llm{
 	{Name: "nousresearch/nous-hermes-llama2-13b", Checked: false},
 }
 
-func ValidationForm() templ.Component {
+func isChecked(model string, evalModels []string) bool {
+	for _, evalModel := range evalModels {
+		if model == evalModel {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidationForm(conversation *models.Conversation) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -35,7 +47,49 @@ func ValidationForm() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/post-script\" class=\"flex flex-col space-y-2\" hx-target=\"#testResults\" hx-swap=\"innerHTML\" enctype=\"multipart/form-data\"><label for=\"test-count\"><span>Test Count</span> <input type=\"number\" name=\"test-count\" class=\"rounded-xl\" placeholder=\"Enter how many tests to run\" value=\"1\"></label> <label for=\"filename\"><span>Filename</span> <input type=\"text\" name=\"filename\" class=\"rounded-xl\" placeholder=\"Enter the yaml file name\" value=\"script.yaml\"></label><div><span class=\"text-lg\">Models:</span><div class=\"grid lg:grid-cols-2 gap-4\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(fmt.Sprintf("/conversations/%s/evaluate", conversation.ID)))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"flex flex-col space-y-2\" hx-target=\"#messages\" hx-swap=\"innerHTML\" enctype=\"multipart/form-data\"><label for=\"prompt\"><span>Prompt</span> <textarea name=\"prompt\" class=\"textarea rounded-lg w-full\" placeholder=\"Enter your prompt\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(conversation.EvalPrompt)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/ValidationForm.templ`, Line: 30, Col: 119}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</textarea></label> <label for=\"test-count\"><span id=\"myRangeValue\">Test Count: ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", conversation.EvalTestCount))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/ValidationForm.templ`, Line: 33, Col: 86}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> <input type=\"range\" min=\"1\" max=\"5\" name=\"test_count\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(fmt.Sprintf("%d", conversation.EvalTestCount)))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"slider\" id=\"myRange\"></label><div><span class=\"text-lg\">Models:</span><div class=\"grid lg:grid-cols-2 gap-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -44,7 +98,7 @@ func ValidationForm() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if model.Checked {
+			if isChecked(model.Name, conversation.EvalModels) {
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" checked")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -62,12 +116,12 @@ func ValidationForm() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var2 string
-			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(model.Name)
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(model.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/ValidationForm.templ`, Line: 30, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/components/ValidationForm.templ`, Line: 42, Col: 24}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -76,7 +130,7 @@ func ValidationForm() templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><button type=\"submit\" class=\"border border-solid bg-slate-200 rounded-xl px-4 py-2\">Submit</button></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><button type=\"submit\" class=\"border border-solid bg-slate-200 rounded-xl px-4 py-2\">Submit</button></form><script>\n\t\tdocument.getElementById(\"myRange\").addEventListener(\"input\", function() {\n\t\t\tdocument.getElementById(\"myRangeValue\").innerText = \"Test Count: \" + this.value;\n\t\t});\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

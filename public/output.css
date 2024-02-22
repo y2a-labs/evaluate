@@ -807,6 +807,10 @@ select {
   overflow-y: auto;
 }
 
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
 .rounded-xl {
   border-radius: 0.75rem;
 }

@@ -85,8 +85,9 @@ func EmbedText(texts []string, taskType TaskType) (*EmbedTextResponse, error) {
 		TaskType: taskType,
 	}
 	// Validate the input
-	for _, text := range texts {
+	for i, text := range texts {
 		if len(text) == 0 {
+			fmt.Println(i)
 			return nil, fmt.Errorf("text cannot be empty")
 		}
 	}

@@ -1,7 +1,5 @@
 package pages
 
-import "script_validation/views/components"
-
 templ Layout() {
 	<html lang="en" class="w-full h-full">
 		<head>
@@ -23,17 +21,4 @@ templ Nav() {
 	<nav class="bg-slate-100 p-4">
 		<div class="text-xl">Script Validator</div>
 	</nav>
-}
-
-templ Home() {
-	@Layout() {
-		@Nav()
-		<div class="container mx-auto max-w-4xl py-8 px-4">
-			<div class="py-4">
-				@components.ValidationForm()
-				<h2 class="text-lg py-4">Test Results:</h2>
-				<div id="testResults" class="flex flex-col space-y-4"></div>
-			</div>
-		</div>
-	}
 }

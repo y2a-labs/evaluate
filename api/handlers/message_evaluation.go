@@ -57,44 +57,50 @@ func ConvertToChatMessages(message []models.Message) []models.ChatMessage {
 	return chatMessages
 }
 
-func processMessage(p ProcessMessage) {
-	defer p.WaitGroup.Done()
+// processMessage handles the evaluation of a message and updates the evaluation record.
+func processMessage(r EvaluationRoutine, llm_client *openai.Client, testCount int) (models.MessageEvaluation, error) {
+	// Initialize the MessageEvaluation
+	messageEvaluation := models.MessageEvaluation{
+		LLMID:                    r.LLM.ID,
+		LLM:                      r.LLM,
+		PromptID:                 r.Prompt.ID,
+		Prompt:                   r.Prompt,
+		MessageID:                r.Conversation.Messages[r.MessageIndex].ID,
+		MessageEvaluationResults: make([]models.MessageEvaluationResult, testCount),
+	}
 
-	for i := range p.TestCount {
+	// Attempt to create the MessageEvaluation record.
+	if err := database.DB.Create(&messageEvaluation).Error; err != nil {
+		return models.MessageEvaluation{}, fmt.Errorf("failed to create message evaluation: %w", err)
+	}
+
+	// Process each message.
+	for i := 0; i < testCount; i++ {
 		startTime := time.Now()
+		messages := r.Conversation.Messages[:r.MessageIndex+1]
+		SetSystemPrompt(&messages, r.Prompt.Content)
 
-		// Get the LLMs Response
-		messages := p.Conversation.Messages[:p.EvalMessageIndex+1]
-
-		SetSystemPrompt(&messages, p.Prompt.Content)
-
-		llm_response, err := llm.GetLLMResponse(p.LLMClient, ConvertToChatMessages(messages), p.LLM.Name)
+		llmResponse, err := llm.GetLLMResponse(llm_client, ConvertToChatMessages(messages), r.LLM.Name)
 		if err != nil {
-			p.ErrCh <- err
-			return
+			return models.MessageEvaluation{}, fmt.Errorf("failed to get LLM response: %w", err)
 		}
 
-		// Get the similarity
-		assistantMessage := p.Conversation.Messages[p.EvalMessageIndex]
-		similarity, err := nomicai.GetTextSimilarity(llm_response.Content, assistantMessage.Content)
+		assistantMessage := r.Conversation.Messages[r.MessageIndex]
+		similarity, err := nomicai.GetTextSimilarity(llmResponse.Content, assistantMessage.Content)
 		if err != nil {
-			p.ErrCh <- err
-			return
+			return models.MessageEvaluation{}, fmt.Errorf("failed to get text similarity: %w", err)
 		}
 
-		// Capture the latency of the request
-		endTime := time.Now()
-		latency := endTime.Sub(startTime).Milliseconds()
-
-		p.MessageEvaluation.MessageEvaluationResults[i] = models.MessageEvaluationResult{
-			Content:    llm_response.Content,
+		latency := time.Since(startTime).Milliseconds()
+		messageEvaluation.MessageEvaluationResults[i] = models.MessageEvaluationResult{
+			Content:    llmResponse.Content,
 			LatencyMs:  int(latency),
 			Similarity: similarity,
 		}
-
 	}
 
-	p.ResultsCh <- p.MessageEvaluation
+	// No transaction is used, so there is no need to commit.
+	return messageEvaluation, nil
 }
 
 func SetSystemPrompt(messages *[]models.Message, prompt string) error {
@@ -124,10 +130,10 @@ func FindOrCreateLLMs(model_names []string) ([]models.LLM, error) {
 }
 
 type EvaluationRoutine struct {
-	Conversation     *models.Conversation
-	EvalMessageIndex uint
-	LLM              models.LLM
-	Prompt           models.Prompt
+	Conversation *models.Conversation
+	MessageIndex uint
+	LLM          models.LLM
+	Prompt       models.Prompt
 }
 
 type EvaluationMessage struct {
@@ -202,10 +208,10 @@ func GetEvaluationRoutines(conversation *models.Conversation, req *models.Create
 	for _, evalMessage := range evaluationMessages {
 		for _, llm := range llms {
 			routine := EvaluationRoutine{
-				Conversation:     conversation,
-				EvalMessageIndex: evalMessage.MessageIndex,
-				LLM:              llm,
-				Prompt:           evalMessage.Prompt,
+				Conversation: conversation,
+				MessageIndex: evalMessage.MessageIndex,
+				LLM:          llm,
+				Prompt:       evalMessage.Prompt,
 			}
 
 			routines = append(routines, routine)
@@ -231,75 +237,49 @@ func CreateLLMEvaluation(ctx context.Context, input *models.CreateLLMEvaluationR
 		return nil, err
 	}
 
+	evaluations := make([]models.MessageEvaluation, len(evaluationRoutines))
+	errors := make([]error, len(evaluationRoutines))
 	var wg sync.WaitGroup
-	routineCount := len(evaluationRoutines)
-	errCh := make(chan error, routineCount)
-	resultsCh := make(chan models.MessageEvaluation, routineCount)
 
-	for _, routine := range evaluationRoutines {
-		// Create the message evaluation
-		message_evaluation := models.MessageEvaluation{
-			LLMID:                    routine.LLM.ID,
-			LLM:                      routine.LLM,
-			PromptID:                 routine.Prompt.ID,
-			Prompt:                   routine.Prompt,
-			MessageID:                routine.Conversation.Messages[routine.EvalMessageIndex].ID,
-			MessageEvaluationResults: make([]models.MessageEvaluationResult, input.Body.TestCount),
-		}
-		result := database.DB.Create(&message_evaluation)
-		if result.Error != nil {
-			return nil, result.Error
-		}
-
+	for i, routine := range evaluationRoutines {
 		wg.Add(1)
-		go processMessage(ProcessMessage{
-			TestCount:         input.Body.TestCount,
-			EvaluationRoutine: routine,
-			MessageEvaluation: message_evaluation,
-			LLMClient:         llm_client,
-			ResultsCh:         resultsCh,
-			ErrCh:             errCh,
-			WaitGroup:         &wg,
-		})
+		go func(index int, r EvaluationRoutine) {
+			defer wg.Done()
+
+			// Process the message and create message evaluation within the processMessage function
+			evaluation, err := processMessage(r, llm_client, input.Body.TestCount)
+
+			if err != nil {
+				errors[index] = err
+				return
+			}
+
+			evaluations[index] = evaluation
+		}(i, routine)
 	}
 
 	wg.Wait()
-	close(errCh)
-	close(resultsCh)
 
-	for err := range errCh {
+	for _, err := range errors {
 		if err != nil {
 			return nil, err
 		}
 	}
-	evaluations := make([]models.MessageEvaluation, routineCount)
-
-	// Load the messages into the results
-	i := 0
-	for result := range resultsCh {
-		result.ComputeAverageSimilarity()
-		evaluations[i] = result
-		i++
-	}
 
 	// Store the results in the database
-	r := database.DB.Create(&evaluations)
-
-	if r.Error != nil {
-		return nil, r.Error
+	result := database.DB.Create(&evaluations)
+	if result.Error != nil {
+		return nil, result.Error
 	}
 
-	// Return an array of messages with the results
-	for i, message := range conversation.Messages {
-		if message.ChatMessage.Role != "assistant" {
-			continue
-		}
-		// Loop through the evaluations and find the one that matches the message
-		for _, evaluation := range evaluations {
-			if evaluation.MessageID == message.ID {
-				conversation.Messages[i].MessageEvaluations = append(conversation.Messages[i].MessageEvaluations, evaluation)
-				// Remove the message evaluation from the array
-				evaluations = append(evaluations[:i-1], evaluations[i:]...)
+	// Update the conversation with the results
+	for i := range conversation.Messages {
+		if conversation.Messages[i].ChatMessage.Role == "assistant" {
+			for _, evaluation := range evaluations {
+				if evaluation.MessageID == conversation.Messages[i].ID {
+					conversation.Messages[i].MessageEvaluations = append(conversation.Messages[i].MessageEvaluations, evaluation)
+					break
+				}
 			}
 		}
 	}
