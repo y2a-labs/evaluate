@@ -6,9 +6,8 @@ type MessageEvaluation struct {
 	MessageID                string
 	LLM                      LLM
 	LLMID                    string
-	PromptID                 string
-	Prompt                   Prompt
-	MessageEvaluationResults []MessageEvaluationResult
+	Prompt                   string
+	MessageEvaluationResults []MessageEvaluationResult `gorm:"constraint:OnDelete:CASCADE;"`
 }
 
 // Add this method to compute the average similarity
@@ -25,7 +24,10 @@ type CreateLLMEvaluationRequest struct {
 	Body CreateLLMEvaluationRequestBody `json:"body"`
 }
 
+
+
 type CreateLLMEvaluationRequestBody struct {
+	ID		string                       `json:"id" path:"id"`
 	Models    []string                     `json:"models" default:"openchat/openchat-7b" required:"true"`
 	TestCount int                          `json:"test_count" minimum:"1" maximum:"10" default:"1" required:"true"`
 	Prompt    string                       `json:"prompt" example:"You are a helpful assistant."`

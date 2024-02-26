@@ -8,7 +8,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"os"
 )
 
 // TaskType defines the allowed task types for the Embed Text API.
@@ -34,8 +33,72 @@ type EmbedTextResponse struct {
 	Usage      map[string]int `json:"usage"` // Assuming usage is a map with "total_tokens" key
 }
 
-// cosineSimilarity calculates the cosine similarity between two float slices.
-func CosineSimilarity(a, b []float64) (float64, error) {
+type Client struct {
+	ApiKey string
+	BaseURL string
+}
+
+const defaultBaseURL = "https://api-atlas.nomic.ai"
+
+func NewClient(apiKey string, baseURLs ...string) *Client {
+	baseURL := defaultBaseURL
+	if len(baseURLs) > 0 {
+		baseURL = baseURLs[0]
+	}
+
+	return &Client{
+		ApiKey:  apiKey,
+		BaseURL: baseURL,
+	}
+}
+
+func (c *Client) EmbedText(texts []string, taskType TaskType) (*EmbedTextResponse, error) {
+	apiURL := c.BaseURL + "/v1/embedding/text"
+
+	payload := EmbedTextRequest{
+		Texts:    texts,
+		TaskType: taskType,
+	}
+	// Validate the input
+	for _, text := range texts {
+		if len(text) == 0 {
+			return nil, fmt.Errorf("text cannot be empty, current text: %v", texts)
+		}
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+c.ApiKey)
+
+	cli := &http.Client{}
+	resp, err := cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	embeddingResponse := &EmbedTextResponse{}
+	derr := json.NewDecoder(resp.Body).Decode(embeddingResponse)
+	if derr != nil && derr != io.EOF {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("error: nomicai %s", resp.Status)
+	}
+	return embeddingResponse, nil
+}
+
+func (c *Client) CosineSimilarity(a, b []float64) (float64, error) {
 	if len(a) != len(b) {
 		return 0, fmt.Errorf("slices must be of the same length")
 	}
@@ -60,71 +123,17 @@ func CosineSimilarity(a, b []float64) (float64, error) {
 	return dotProduct / (magA * magB), nil // Calculate cosine similarity
 }
 
-func GetTextSimilarity(text1 string, text2 string) (float64, error) {
-	embeddings, err := EmbedText(
+func (c *Client) GetTextSimilarity(text1 string, text2 string) (float64, error) {
+	embeddings, err := c.EmbedText(
 		[]string{text1, text2},
 		Clustering,
 	)
 	if err != nil {
 		return 0, err
 	}
-	similarity, err := CosineSimilarity(embeddings.Embeddings[0], embeddings.Embeddings[1])
+	similarity, err := c.CosineSimilarity(embeddings.Embeddings[0], embeddings.Embeddings[1])
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	return similarity, nil
-}
-
-// EmbedText sends texts to the Nomic AI Embed Text API for a specific task and returns the embedded representations.
-func EmbedText(texts []string, taskType TaskType) (*EmbedTextResponse, error) {
-	apiKey := os.Getenv("NOMICAI_API_KEY")
-	apiURL := "https://api-atlas.nomic.ai/v1/embedding/text"
-
-	payload := EmbedTextRequest{
-		Texts:    texts,
-		TaskType: taskType,
-	}
-	// Validate the input
-	for i, text := range texts {
-		if len(text) == 0 {
-			fmt.Println(i)
-			return nil, fmt.Errorf("text cannot be empty")
-		}
-	}
-
-	// Validate the API key
-	if len(apiKey) == 0 {
-		return nil, fmt.Errorf("NOMICAI_API_KEY environment variable not set")
-	}
-
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+apiKey)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	embeddingResponse := &EmbedTextResponse{}
-	derr := json.NewDecoder(resp.Body).Decode(embeddingResponse)
-	if derr != nil && derr != io.EOF {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error: nomicai %s", resp.Status)
-	}
-	return embeddingResponse, nil
 }

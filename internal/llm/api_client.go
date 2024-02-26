@@ -2,12 +2,12 @@ package llm
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"script_validation/models"
 
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -23,10 +23,10 @@ func (c *CustomTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	clonedRequest := req.Clone(req.Context())
 
 	// Add your custom headers here
-	clonedRequest.Header.Add("Helicone-Target-Url", "https://openrouter.ai/api/v1")
-	clonedRequest.Header.Add("Helicone-Auth", "Bearer "+os.Getenv("LLM_PROXY_API_KEY"))
+	//clonedRequest.Header.Add("Helicone-Target-Url", "https://openrouter.ai/api/v1")
+	clonedRequest.Header.Add("Helicone-Auth", "Bearer "+os.Getenv("HELICONE_API_KEY"))
 	clonedRequest.Header.Set("Content-Type", "application/json")
-	clonedRequest.Header.Set("Authorization", "Bearer "+os.Getenv("LLM_API_KEY"))
+	//clonedRequest.Header.Set("Authorization", "Bearer "+os.Getenv("LLM_API_KEY"))
 	// Add your custom headers here
 	for key, value := range c.CustomerHeaders {
 		clonedRequest.Header.Add(key, value)
@@ -35,14 +35,17 @@ func (c *CustomTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return c.Transport.RoundTrip(clonedRequest)
 }
 
-func GetLLMClient(customHeaders map[string]string) *openai.Client {
-	godotenv.Load()
+func GetLLMClient(provider *models.Provider) *openai.Client {
 	cid := uuid.New().String()
-	customHeaders["Helicone-Property-cid"] = cid
-	apiKey := os.Getenv("LLM_API_KEY")
+	customHeaders := map[string]string{
+		"Helicone-Property-cid": cid,
+	}
+	apiKey := os.Getenv(provider.EnvKey)
+	fmt.Println("API Key", apiKey)
 	config := openai.DefaultConfig(apiKey)
-	config.BaseURL = "https://gateway.hconeai.com/api/v1"
+	config.BaseURL = provider.BaseUrl
 	config.HTTPClient.Transport = &CustomTransport{Transport: http.DefaultTransport, CustomerHeaders: customHeaders}
+	fmt.Println("baseurl", config.BaseURL)
 	return openai.NewClientWithConfig(config)
 }
 
@@ -60,8 +63,9 @@ func GetLLMResponse(client *openai.Client, messages []models.ChatMessage, model 
 	resp, err := client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model:       model,
 		Messages:    oai_messages,
-		Temperature: 0.7,
+		//Temperature: 0.7,
 	})
+
 	if err != nil {
 		return models.ChatMessage{}, err
 	}

@@ -1,6 +1,8 @@
 package models
 
-import "gorm.io/datatypes"
+import (
+	"gorm.io/datatypes"
+)
 
 type Embedding struct {
 	datatypes.JSONSlice[float64]
@@ -11,8 +13,8 @@ type Message struct {
 	ChatMessage
 	MessageIndex       uint
 	ConversationID     string
-	MessageEvaluations []MessageEvaluation
-	Embedding		  datatypes.JSONSlice[float64]
+	MessageEvaluations []MessageEvaluation `gorm:"constraint:OnDelete:CASCADE;"`
+	Embedding          datatypes.JSONSlice[float64]
 }
 
 func (message *Message) ConvertToChatMessage() ChatMessage {

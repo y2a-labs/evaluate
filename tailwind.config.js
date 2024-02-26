@@ -6,7 +6,7 @@ module.exports = {
     './**/*.templ',
   ],
   theme: {
-    extend: {},
+
   },
   plugins: [
     require('@tailwindcss/typography'),

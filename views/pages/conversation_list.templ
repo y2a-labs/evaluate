@@ -2,12 +2,13 @@ package pages
 
 import "script_validation/models"
 
-templ ConversationListPage(conversations []models.Conversation) {
+templ ConversationListPage(conversations *[]models.Conversation) {
 	@Layout() {
 		@Nav()
 		<div class="container mx-auto max-w-4xl py-8 px-4">
-			<div class="py-4 grid gap-2 lg:cols-2" id="conversations">
-				for _, conversation := range conversations {
+			@CreateConversationForm()
+			<div class="py-4 grid gap-4 md:grid-cols-2" id="conversations">
+				for _, conversation := range *conversations {
 					@ConversationCard(conversation)
 				}
 			</div>
@@ -16,8 +17,37 @@ templ ConversationListPage(conversations []models.Conversation) {
 }
 
 templ ConversationCard(conversation models.Conversation) {
-	<div class="p-4 bg-slate-200">
-		<a href={ templ.URL("/conversations/" + conversation.ID) }>{ conversation.Name } </a>
+	<a class="p-4 bg-slate-200 rounded-lg hover:bg-slate-300" href={ templ.URL("/conversations/" + conversation.ID) }>
+		{ conversation.Name }
 		<p>{ conversation.ID }</p>
-	</div>
+	</a>
+}
+
+
+var conversation = `AI: Hello!
+USER: Hey, what's up?
+AI: This is some dummy conversation.
+`
+
+templ CreateConversationForm() {
+	<form hx-post="/conversations" class="flex flex-col space-y-2" hx-target="#conversations" hx-swap="afterbegin" enctype="multipart/form-data" hx-indicator="#spinner">
+		<h1 class="text-xl">Create a new conversation</h1>
+		<label for="name">
+			<span>Name:</span>
+			<input type="text" class="w-full rounded-lg" placeholder="Conversation Name" value="Example Conversation" name="name"/>
+		</label>
+		<label for="conversation">
+			<span>Conversation:</span>
+			<textarea name="conversation" class="textarea rounded-lg w-full" placeholder="Enter the conversation" rows="5">{ conversation }</textarea>
+		</label>
+		<div class="flex flex-row items-center">
+			<button type="submit" class="border border-solid bg-slate-200 hover:bg-slate-300 rounded-xl px-4 py-2">
+				Submit
+			</button>
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 animate-spin htmx-indicator" id="spinner" viewBox="0 0 512 512">
+				<!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+				<path d="M304 48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zm0 416a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM48 304a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm464-48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM142.9 437A48 48 0 1 0 75 369.1 48 48 0 1 0 142.9 437zm0-294.2A48 48 0 1 0 75 75a48 48 0 1 0 67.9 67.9zM369.1 437A48 48 0 1 0 437 369.1 48 48 0 1 0 369.1 437z"></path>
+			</svg>
+		</div>
+	</form>
 }

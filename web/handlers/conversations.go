@@ -24,31 +24,31 @@ func ConversationsHandler(c *fiber.Ctx) error {
 	}
 
 	// Get the conversation
-	conversation := &models.Conversation{}
-
-	r := database.DB.
-		Preload("Messages.MessageEvaluations", func(db *gorm.DB) *gorm.DB {
-			return db.Where("average_similarity > 0").Order("average_similarity DESC").Limit(5).Preload("MessageEvaluationResults").Preload("LLM").Preload("Prompt")
-		}).
-		First(&conversation, "conversations.id = ?", id)
-
-	if r.Error != nil {
-		return web.Render(c, components.ErrorMessage(r.Error))
+	conversation, err := GetConversationWithEval(id, 50)
+	if err != nil {
+		return web.Render(c, components.ErrorMessage(err))
 	}
 
 	return web.Render(c, pages.ConversationPage(conversation))
 }
 
-func GetConversationListHandler(c *fiber.Ctx) error {
-	var conversations []models.Conversation
+func GetConversationWithEval(id string, limit int) (*models.Conversation, error) {
+	conversation := &models.Conversation{}
 
 	r := database.DB.
-		Limit(15).
-		Find(&conversations)
+		Preload("Messages.MessageEvaluations", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC").Order("average_similarity DESC").
+				Preload("MessageEvaluationResults", func(db *gorm.DB) *gorm.DB {
+					return db.Limit(limit) // Limit to 5 results per evaluation
+				}).
+				Preload("LLM").
+				Preload("Prompt")
+		}).
+		First(&conversation, "conversations.id = ?", id)
 
 	if r.Error != nil {
-		return web.Render(c, components.ErrorMessage(r.Error))
+		return nil, r.Error
 	}
 
-	return web.Render(c, pages.ConversationListPage(conversations))
+	return conversation, nil
 }

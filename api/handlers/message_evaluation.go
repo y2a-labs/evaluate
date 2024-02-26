@@ -1,16 +1,24 @@
 package apihandlers
 
 import (
-	"context"
 	"fmt"
+	"os"
 	database "script_validation"
 	"script_validation/internal/llm"
 	"script_validation/internal/nomicai"
+	"script_validation/limiter"
 	"script_validation/models"
+	valid "script_validation/validator"
+	"script_validation/views/pages"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
+	"golang.org/x/time/rate"
 )
 
 type LLMEvaluationInput struct {
@@ -58,37 +66,43 @@ func ConvertToChatMessages(message []models.Message) []models.ChatMessage {
 }
 
 // processMessage handles the evaluation of a message and updates the evaluation record.
-func processMessage(r EvaluationRoutine, llm_client *openai.Client, testCount int) (models.MessageEvaluation, error) {
+func processMessage(r EvaluationRoutine, llm_client *openai.Client, embeddingClient *nomicai.Client, limiter *rate.Limiter, ctx *fiber.Ctx) (*models.MessageEvaluation, error) {
+	
+    // Wait for permission before making the first request
+    if err := limiter.Wait(ctx.Context()); err != nil {
+        return nil, fmt.Errorf("rate limiter wait error: %w", err)
+    }
+	testCount := r.Conversation.EvalTestCount
+
 	// Initialize the MessageEvaluation
 	messageEvaluation := models.MessageEvaluation{
+		BaseModel:                models.BaseModel{ID: uuid.New().String()},
 		LLMID:                    r.LLM.ID,
 		LLM:                      r.LLM,
-		PromptID:                 r.Prompt.ID,
 		Prompt:                   r.Prompt,
 		MessageID:                r.Conversation.Messages[r.MessageIndex].ID,
 		MessageEvaluationResults: make([]models.MessageEvaluationResult, testCount),
 	}
 
-	// Attempt to create the MessageEvaluation record.
-	if err := database.DB.Create(&messageEvaluation).Error; err != nil {
-		return models.MessageEvaluation{}, fmt.Errorf("failed to create message evaluation: %w", err)
-	}
-
 	// Process each message.
 	for i := 0; i < testCount; i++ {
+        if err := limiter.Wait(ctx.Context()); err != nil {
+            return nil, fmt.Errorf("rate limiter wait error before request %d: %w", i, err)
+        }
+		fmt.Println("Processing message", i+1, "of", testCount, "for message", r.MessageIndex, "of", len(r.Conversation.Messages))
 		startTime := time.Now()
-		messages := r.Conversation.Messages[:r.MessageIndex+1]
-		SetSystemPrompt(&messages, r.Prompt.Content)
+		messages := r.Conversation.Messages[:r.MessageIndex]
+		SetSystemPrompt(&messages, r.Prompt)
 
-		llmResponse, err := llm.GetLLMResponse(llm_client, ConvertToChatMessages(messages), r.LLM.Name)
+		llmResponse, err := llm.GetLLMResponse(llm_client, ConvertToChatMessages(messages), r.LLM.ID)
 		if err != nil {
-			return models.MessageEvaluation{}, fmt.Errorf("failed to get LLM response: %w", err)
+			return nil, fmt.Errorf("failed to get LLM response: %w", err)
 		}
 
 		assistantMessage := r.Conversation.Messages[r.MessageIndex]
-		similarity, err := nomicai.GetTextSimilarity(llmResponse.Content, assistantMessage.Content)
+		similarity, err := embeddingClient.GetTextSimilarity(llmResponse.Content, assistantMessage.Content)
 		if err != nil {
-			return models.MessageEvaluation{}, fmt.Errorf("failed to get text similarity: %w", err)
+			return nil, fmt.Errorf("failed to get text similarity: %w", err)
 		}
 
 		latency := time.Since(startTime).Milliseconds()
@@ -98,9 +112,10 @@ func processMessage(r EvaluationRoutine, llm_client *openai.Client, testCount in
 			Similarity: similarity,
 		}
 	}
+	messageEvaluation.ComputeAverageSimilarity()
 
 	// No transaction is used, so there is no need to commit.
-	return messageEvaluation, nil
+	return &messageEvaluation, nil
 }
 
 func SetSystemPrompt(messages *[]models.Message, prompt string) error {
@@ -115,42 +130,35 @@ func SetSystemPrompt(messages *[]models.Message, prompt string) error {
 	return nil
 }
 
-func FindOrCreateLLMs(model_names []string) ([]models.LLM, error) {
-	llms := make([]models.LLM, len(model_names))
-	for i, name := range model_names {
-		llm := models.LLM{Name: name}
-		r := database.DB.FirstOrCreate(&llm, "name = ?", name)
-		if r.Error != nil {
-			return nil, r.Error
-		}
-		llms[i] = llm
-		fmt.Println("LLM: ", llm)
-	}
-	return llms, nil
-}
-
 type EvaluationRoutine struct {
 	Conversation *models.Conversation
 	MessageIndex uint
 	LLM          models.LLM
-	Prompt       models.Prompt
+	Prompt       string
 }
 
 type EvaluationMessage struct {
 	models.Message
-	Prompt models.Prompt
+	Prompt string
 }
 
-func GetEvaluationRoutines(conversation *models.Conversation, req *models.CreateLLMEvaluationRequest) ([]EvaluationRoutine, error) {
+func GetEvaluationRoutines(conversation *models.Conversation, req *PostEvaluationAPIRequest) ([]EvaluationRoutine, error) {
 	evaluationMessages := []EvaluationMessage{}
 
-	basePrompt, err := FindOrCreatePrompt(req.Body.Prompt)
+	basePrompt := req.Prompt
 
-	if err != nil {
-		return nil, err
+	// out of end index, and len messages, pick the lower value
+	endIndex := len(conversation.Messages)
+	if req.EndIndex < endIndex {
+		endIndex = req.EndIndex + 1
 	}
 
-	for i := 1; i < len(conversation.Messages); i++ {
+	startIndex := 1
+	if req.StartIndex+1 > startIndex {
+		startIndex = req.StartIndex
+	}
+
+	for i := startIndex; i < endIndex; i++ {
 		if conversation.Messages[i].ChatMessage.Role != "assistant" {
 			continue
 		}
@@ -159,15 +167,15 @@ func GetEvaluationRoutines(conversation *models.Conversation, req *models.Create
 		previousIsUser := conversation.Messages[i-1].ChatMessage.Role == "user"
 
 		// Run Eval on all assistant messages
-		if previousIsUser && len(req.Body.Messages) == 0 {
+		if previousIsUser && len(req.Messages) == 0 {
 			evaluationMessages = append(evaluationMessages, EvaluationMessage{
 				Message: message,
-				Prompt:  *basePrompt,
+				Prompt:  basePrompt,
 			})
 			continue
 		}
 		// Run eval on the provided list of messages
-		for _, reqMessage := range req.Body.Messages {
+		for _, reqMessage := range req.Messages {
 			if message.ID == reqMessage.ID {
 				// Throw an error if its not an assistant message
 				if message.ChatMessage.Role != "assistant" {
@@ -178,21 +186,18 @@ func GetEvaluationRoutines(conversation *models.Conversation, req *models.Create
 					return nil, fmt.Errorf("err: message with id %s is not preceded by a user message", message.ID)
 				}
 				// Get the prompt
-				prompt, err := FindOrCreatePrompt(req.Body.Prompt)
+				prompt := req.Prompt
 
-				if err != nil {
-					return nil, err
-				}
 				evaluationMessages = append(evaluationMessages, EvaluationMessage{
 					Message: message,
-					Prompt:  *prompt,
+					Prompt:  prompt,
 				})
 			}
 		}
 	}
 
 	// Get the LLMs
-	llms, err := FindOrCreateLLMs(req.Body.Models)
+	llms, err := FindOrCreateLLMs(req.Models)
 	if err != nil || len(llms) == 0 {
 		return nil, err
 	}
@@ -202,7 +207,7 @@ func GetEvaluationRoutines(conversation *models.Conversation, req *models.Create
 		return nil, fmt.Errorf("err: no evaluation messages in the conversation")
 	}
 
-	routines := make([]EvaluationRoutine, 0, routineCount)
+	var routines []EvaluationRoutine
 
 	// Range over the user messages
 	for _, evalMessage := range evaluationMessages {
@@ -221,23 +226,52 @@ func GetEvaluationRoutines(conversation *models.Conversation, req *models.Create
 
 }
 
-func CreateLLMEvaluation(ctx context.Context, input *models.CreateLLMEvaluationRequest) (*[]models.Message, error) {
+func CreateLLMEvaluation(req *PostEvaluationAPIRequest, ctx *fiber.Ctx) (*[]models.Message, error) {
 	// Get the conversation
-	conversation, err := GetConversation(input.ID)
+	conversation, err := GetConversation(req.ID)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Test Count", req.TestCount)
 
-	// Create the LLM Client
-	llm_client := llm.GetLLMClient(map[string]string{})
+	database.DB.Model(&conversation).UpdateColumns(models.Conversation{
+		EvalEndIndex:   req.EndIndex,
+		EvalStartIndex: req.StartIndex,
+		EvalPrompt:     req.Prompt,
+		EvalModels:     req.Models,
+		EvalTestCount:  req.TestCount,
+	})
+
+	llm_clients := make(map[string]*openai.Client)
+	providers := make(map[string]*models.Provider)
+
+	for i, model := range req.Models {
+		providerId := strings.Split(model, "/")[0]
+		req.Models[i] = strings.TrimPrefix(model, providerId+"/")
+		// check if provider exists in provider map
+		if _, ok := llm_clients[providerId]; !ok {
+			// if not, add it to the map
+			provider := &models.Provider{ID: providerId}
+			tx := database.DB.First(&provider)
+			if tx.Error != nil {
+				return nil, tx.Error
+			}
+			llm_clients[providerId] = llm.GetLLMClient(provider)
+			providers[providerId] = provider
+			limiter.Manager.GetLimiter(*provider)
+		}
+
+	}
+
+	embeddingsClient := nomicai.NewClient(os.Getenv("NOMICAI_API_KEY"))
 
 	// Make a list of tests to be run
-	evaluationRoutines, err := GetEvaluationRoutines(conversation, input)
+	evaluationRoutines, err := GetEvaluationRoutines(conversation, req)
 	if err != nil {
 		return nil, err
 	}
 
-	evaluations := make([]models.MessageEvaluation, len(evaluationRoutines))
+	evaluations := make([]*models.MessageEvaluation, len(evaluationRoutines))
 	errors := make([]error, len(evaluationRoutines))
 	var wg sync.WaitGroup
 
@@ -246,8 +280,12 @@ func CreateLLMEvaluation(ctx context.Context, input *models.CreateLLMEvaluationR
 		go func(index int, r EvaluationRoutine) {
 			defer wg.Done()
 
-			// Process the message and create message evaluation within the processMessage function
-			evaluation, err := processMessage(r, llm_client, input.Body.TestCount)
+			// Retrieve the provider and its rate limiter
+			provider := providers[r.LLM.ProviderID]
+			limiter := limiter.Manager.GetLimiter(*provider)
+			// Now proceed to make the request
+			llm_client := llm_clients[r.LLM.ProviderID]
+			evaluation, err := processMessage(r, llm_client, embeddingsClient, limiter, ctx)
 
 			if err != nil {
 				errors[index] = err
@@ -265,36 +303,76 @@ func CreateLLMEvaluation(ctx context.Context, input *models.CreateLLMEvaluationR
 			return nil, err
 		}
 	}
-
 	// Store the results in the database
-	result := database.DB.Create(&evaluations)
+	result := database.DB.Save(&evaluations)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
+	// Create a map to store slices of evaluations by their MessageID
+	evaluationsMap := make(map[string][]models.MessageEvaluation)
+	for _, evaluation := range evaluations {
+		// Append the evaluation to the slice for its MessageID
+		evaluationsMap[evaluation.MessageID] = append(evaluationsMap[evaluation.MessageID], *evaluation)
+	}
+
+	// Sort the evaluations for each message by average similarity
+	for messageID, evaluations := range evaluationsMap {
+		evaluationsMap[messageID] = sortEvaluationsByAverageSimilarity(evaluations)
+	}
+
 	// Update the conversation with the results
-	for i := range conversation.Messages {
-		if conversation.Messages[i].ChatMessage.Role == "assistant" {
-			for _, evaluation := range evaluations {
-				if evaluation.MessageID == conversation.Messages[i].ID {
-					conversation.Messages[i].MessageEvaluations = append(conversation.Messages[i].MessageEvaluations, evaluation)
-					break
-				}
-			}
+	for i, message := range conversation.Messages {
+		if message.ChatMessage.Role != "assistant" {
+			continue
+		}
+		if evaluations, ok := evaluationsMap[message.ID]; ok {
+			// Prepend the new evaluations to the existing ones
+			conversation.Messages[i].MessageEvaluations = append(evaluations, message.MessageEvaluations...)
 		}
 	}
 
 	return &conversation.Messages, nil
 }
 
-func CreateLLMEvaluationAPI(ctx context.Context, input *models.CreateLLMEvaluationRequest) (*models.CreateLLMEvaluationResponse, error) {
-	messages, err := CreateLLMEvaluation(ctx, input)
-	if err != nil {
-		return nil, err
+// sortEvaluationsByAverageSimilarity sorts a slice of evaluations by their average similarity in descending order
+func sortEvaluationsByAverageSimilarity(evaluations []models.MessageEvaluation) []models.MessageEvaluation {
+	sort.Slice(evaluations, func(i, j int) bool {
+		return evaluations[i].AverageSimilarity > evaluations[j].AverageSimilarity
+	})
+	return evaluations
+}
+
+type PostEvaluationAPIRequest struct {
+	ID         string   `path:"id"`
+	Models     []string `json:"models" form:"models"`
+	TestCount  int      `json:"test_count" form:"test_count"`
+	StartIndex int      `json:"start_index" form:"start_index"`
+	EndIndex   int      `json:"end_index" form:"end_index"`
+	Prompt     string   `json:"prompt" form:"prompt"`
+	Messages   []struct {
+		ID     string `json:"id" form:"id"`
+		Prompt string `json:"prompt" form:"prompt"`
 	}
-	return &models.CreateLLMEvaluationResponse{
-		Body: models.CreateLLMEvaluationResponseBody{
-			Messages: messages,
-		},
-	}, nil
+}
+
+type PostEvaluationAPIParams struct {
+	ID string `path:"id"`
+}
+
+func PostEvaluationAPI(ctx *fiber.Ctx) error {
+	req := &PostEvaluationAPIRequest{}
+
+	err := valid.ValidateStruct(ctx, req)
+	if err != nil {
+		return err
+	}
+	messages, err := CreateLLMEvaluation(req, ctx)
+	if err != nil {
+		return err
+	}
+	if ctx.Accepts("html") != "" {
+		return Render(ctx, pages.Messages(*messages))
+	}
+	return ctx.JSON(messages)
 }

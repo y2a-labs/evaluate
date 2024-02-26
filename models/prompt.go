@@ -1,13 +1,5 @@
 package models
 
-import "gorm.io/datatypes"
-
-type Prompt struct {
-	BaseModel
-	Content   string
-	Embedding datatypes.JSONSlice[float64]
-}
-
 type CreatePromptRequest struct {
 	ID string `path:"id"`
 }
@@ -25,6 +17,6 @@ type FindOrCreatePromptResponse struct {
 }
 
 type FindOrCreatePromptResponseBody struct {
-	Content   string    `json:"content"`
+	Content string `json:"content"`
 	BaseModel
 }

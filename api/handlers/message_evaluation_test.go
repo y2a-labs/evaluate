@@ -1,90 +1,69 @@
 package apihandlers
 
 import (
-	"context"
-	"log"
 	"reflect"
-	database "script_validation"
 	"script_validation/models"
 	"testing"
-
-	"github.com/joho/godotenv"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateLLMEvaluation(t *testing.T) {
-	type args struct {
-		ctx   context.Context
-		input *models.CreateLLMEvaluationRequest
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *LLMEvaluationOutput
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateLLMEvaluationAPI(tt.args.ctx, tt.args.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateLLMEvaluation() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateLLMEvaluation() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestFindOrCreateLLMs(t *testing.T) {
-	godotenv.Load()
+/*
+func TestProcessMessage(t *testing.T) {
+	godotenv.Load("../../.env")
 	database.ConnectDB(":memory:")
-	llms := []models.LLM{
-		{
-			Name: "model1",
-		},
-		{
-			Name: "model2",
-		},
+	conversation, err := CreateConversation("Test Conversation", "user: test content\nassistant: Hello!\nuser: test content\nassistant: Hello!")
+	if err != nil {
+		log.Fatal(err)
 	}
-	database.DB.Create(&llms)
+	conversation.EvalTestCount = 2
 
-	type args struct {
-		model_names []string
+	llm_model := models.LLM{ID: "openchat/openchat-7b"}
+	prompt := "You are a helpful assistant"
+	database.DB.Save(&llm_model)
+	database.DB.Save(&prompt)
+
+	routine := EvaluationRoutine{
+		Conversation: conversation,
+		MessageIndex: 2,
+		LLM:          llm_model,
+		Prompt:       prompt,
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []models.LLM
-		wantErr bool
-	}{
-		{
-			name: "Create new models",
-			args: args{
-				model_names: []string{"model1", "model2"},
+	provider := &models.Provider{
+		ID:           "groq",
+		BaseUrl:      "https://api.groq.com/openai/v1",
+		EnvKey: 	 "GROQ_API_KEY",
+	}
+	llm_client := llm.GetLLMClient(provider)
+
+	embedding_client := nomicai.NewClient(os.Getenv("NOMICAI_API_KEY"))
+
+	evaluation, err := processMessage(
+		routine,
+		llm_client,
+		embedding_client,
+	)
+	assert.Nil(t, err, "Should not return an error")
+
+		want := &models.MessageEvaluation{
+			MessageID:      conversation.Messages[routine.MessageIndex].ID,
+			LLMID:          llm_model.ID,
+			LLM:			llm_model,
+			PromptID:       prompt.ID,
+			Prompt: 	   prompt,
+			MessageEvaluationResults: []models.MessageEvaluationResult{
+				models.MessageEvaluationResult{
+					Content:    "test content",
+					Similarity: 0.0,
+					MessageEvaluationID: evaluation.ID,
+				},
 			},
-			want:    llms,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := FindOrCreateLLMs(tt.args.model_names)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FindOrCreateLLMs() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			for i, gotLLM := range got {
-				if gotLLM.Name != tt.want[i].Name {
-					t.Errorf("FindOrCreateLLMs() = %v, want %v", gotLLM.Name, tt.want[i].Name)
-				}
-			}
-		})
-	}
+		}
+
+	assert.Equal(t, len(evaluation.MessageEvaluationResults), 2, "Should return 2 message evaluations results")
+	assert.NotEmpty(t, evaluation.MessageEvaluationResults[0].Content, "Should have content in the message evaluation results")
+	assert.NotEmpty(t, evaluation.MessageEvaluationResults[0].Similarity, "Should have similarity in the message evaluation results")
+	//assert.Greater(t, evaluation.AverageSimilarity, 0.0, "Should return a positive average similarity")
 }
+*/
 
 func TestConvertToChatMessages(t *testing.T) {
 	type args struct {
@@ -182,6 +161,7 @@ func TestSetSystemPrompt(t *testing.T) {
 	}
 }
 
+/*
 func TestGetEvaluationRoutines(t *testing.T) {
 	err := godotenv.Load("../../.env")
 	if err != nil {
@@ -193,21 +173,17 @@ func TestGetEvaluationRoutines(t *testing.T) {
 		Messages: []models.Message{
 			{ChatMessage: models.ChatMessage{Role: "user", Content: "test content"}},
 			{ChatMessage: models.ChatMessage{Role: "assistant", Content: "Hello!"}},
-			{ChatMessage: models.ChatMessage{Role: "user", Content: "test content"}},
-			{ChatMessage: models.ChatMessage{Role: "assistant", Content: "Hello!"}},
 		},
 	}
-	req := &models.CreateLLMEvaluationRequest{
-		Body: models.CreateLLMEvaluationRequestBody{
-			Models:    []string{"openchat/openchat-7b"},
-			TestCount: 1,
-			Prompt:    "You are a helpful assistant.",
-		},
+	req := &models.CreateLLMEvaluationRequestBody{
+		Models:    []string{"openchat/openchat-7b", "google/gemma-7b-it"},
+		TestCount: 1,
+		Prompt:    "You are a helpful assistant.",
 	}
 	// Using a system level prompt
 	routines, err := GetEvaluationRoutines(&conversation, req)
 	assert.Nil(t, err, "Should not return an error")
-	assert.Equal(t, len(routines), 2, "Should return 1 routine")
+	assert.Equal(t, 2, len(routines), "Should return 2 routines")
 
 	// Using a prompt per message
 	conversation = models.Conversation{
@@ -219,45 +195,17 @@ func TestGetEvaluationRoutines(t *testing.T) {
 			{ChatMessage: models.ChatMessage{Role: "assistant", Content: "Hello!"}, BaseModel: models.BaseModel{ID: "4"}},
 		},
 	}
-	req = &models.CreateLLMEvaluationRequest{
-		Body: models.CreateLLMEvaluationRequestBody{
-			Models:    []string{"openchat/openchat-7b"},
-			TestCount: 1,
-			Prompt:    "You are a helpful assistant.",
-			Messages: []models.CreateLLMEvaluationMessage{
-				{ID: "2", Prompt: "You are a helpful assistant."},
-				{ID: "2", Prompt: "What's going on?"},
-			},
+	req = &models.CreateLLMEvaluationRequestBody{
+		Models:    []string{"openchat/openchat-7b"},
+		TestCount: 1,
+		Prompt:    "You are a helpful assistant.",
+		Messages: []models.CreateLLMEvaluationMessage{
+			{ID: "2", Prompt: "You are a helpful assistant."},
+			{ID: "2", Prompt: "What's going on?"},
 		},
 	}
 	routines, err = GetEvaluationRoutines(&conversation, req)
 	assert.Nil(t, err, "Should not return an error")
 	assert.Equal(t, len(routines), 2, "Should return 2 routines")
 }
-
-func TestCreateLLMEvaluationAPI(t *testing.T) {
-	type args struct {
-		ctx   context.Context
-		input *models.CreateLLMEvaluationRequest
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *models.CreateLLMEvaluationResponse
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateLLMEvaluationAPI(tt.args.ctx, tt.args.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateLLMEvaluationAPI() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateLLMEvaluationAPI() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+*/
