@@ -1,0 +1,12 @@
+<div id="messages">
+    {{ range .}}
+        <div class="chat chat-start">
+            <div class="chat-header">
+                {{ .Role}}
+            </div>
+            <div class="chat-bubble">
+                {{ .Content}}
+            </div>
+        </div>
+    {{ end}}
+</div>

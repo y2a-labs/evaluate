@@ -1,0 +1,33 @@
+<div class="collapse collapse-arrow border border-solid mb-8">
+  <input type="checkbox" /> 
+  <div class="collapse-title text-xl font-medium">
+    Run Tests
+  </div>
+  <div class="collapse-content"> 
+    <form hx-post="" class="flex flex-col space-y-2">
+        <label for="tests" class="label">Tests</label>
+        {{ range .Conversations}}
+            <label>
+                <input type="checkbox" name="tests" checked="checked" class="checkbox checkbox-sm" /> <span>{{.ID}} </span>
+            </label>
+        {{ end }}
+        <label class="flex items-center gap-2">
+            Prompt:
+            <select class="w-full select max-w-32 select-bordered">
+                <option disabled selected>Who shot first?</option>
+                <option>Han Solo</option>
+                <option>Greedo</option>
+            </select>
+        </label>
+        <label class="flex items-center gap-2">
+            Run Count:
+            <input type="number" class="input input-bordered max-w-32" name="run_count" value="1"/>
+        </label>
+        <label for="models" class="label">Models</label>
+        <label>
+            <input type="checkbox" name="tests" checked="checked" class="checkbox checkbox-sm" /> <span>Openchat 3.5 </span>
+        </label>
+        <button class="btn btn-primary w-32">Run Tests</button>
+    </form>
+  </div>
+</div>

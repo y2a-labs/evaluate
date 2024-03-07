@@ -1,0 +1,58 @@
+// Generated controller.go.tmpl
+package {{ .PackageName }}
+
+import (
+	"github.com/go-fuego/fuego"
+	"script_validation/models"
+)
+
+func (rs Resources) Register{{.StructName}}Routes(s *fuego.Server) {
+	{{ .StructName}}Group := fuego.Group(s, "/{{lower .StructName}}")
+
+	fuego.Get({{ .StructName}}Group, "/", rs.getAll{{ capitalize .StructName}}s)
+	fuego.Post({{ .StructName}}Group, "/", rs.create{{ capitalize .StructName}})
+
+	fuego.Get({{ .StructName}}Group, "/{id}", rs.get{{ capitalize .StructName}})
+	fuego.Put({{ .StructName}}Group, "/{id}", rs.update{{ capitalize .StructName}})
+	fuego.Delete({{ .StructName}}Group, "/{id}", rs.delete{{ capitalize .StructName}})
+}
+
+func (rs Resources) getAll{{ capitalize .StructName}}s(c fuego.ContextNoBody) (*[]models.{{ capitalize .StructName}}, error) {
+	return rs.{{capitalize .StructName}}Service.GetAll{{ capitalize .StructName}}s()
+}
+
+func (rs Resources) create{{ capitalize .StructName}}(c *fuego.ContextWithBody[models.{{ capitalize .StructName}}Create]) (*models.{{ capitalize .StructName}}, error) {
+	body, err := c.Body()
+	if err != nil {
+		return &models.{{ capitalize .StructName}}{}, err
+	}
+
+	return rs.{{capitalize .StructName}}Service.Create{{ capitalize .StructName}}(body)
+}
+
+func (rs Resources) get{{ capitalize .StructName}}(c fuego.ContextNoBody) (*models.{{ capitalize .StructName}}, error) {
+	id := c.PathParam("id")
+
+	return rs.{{capitalize .StructName}}Service.Get{{ capitalize .StructName}}(id)
+}
+
+func (rs Resources) update{{ capitalize .StructName}}(c *fuego.ContextWithBody[models.{{ capitalize .StructName}}Update]) (*models.{{ capitalize .StructName}}, error) {
+	id := c.PathParam("id")
+
+	body, err := c.Body()
+	if err != nil {
+		return &models.{{ capitalize .StructName}}{}, err
+	}
+
+	new, err := rs.{{capitalize .StructName}}Service.Update{{ capitalize .StructName}}(id, body)
+	if err != nil {
+		return &models.{{ capitalize .StructName}}{}, err
+	}
+
+	return new, nil
+}
+
+func (rs Resources) delete{{ capitalize .StructName}}(c *fuego.ContextNoBody) (*models.{{ capitalize .StructName}}, error) {
+	id := c.PathParam("id")
+	return rs.{{capitalize .StructName}}Service.Delete{{ capitalize .StructName}}(id)
+}

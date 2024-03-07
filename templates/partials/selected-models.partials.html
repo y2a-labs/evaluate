@@ -1,0 +1,33 @@
+<div class="text-lg">Models</div>
+<div class="overflow-x-auto max-h-32 overflow-y-auto">
+  <table class="table table-sm">
+    <!-- head -->
+    <thead>
+      <tr>
+        <th>Provider</th>
+        <th>Name</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="models-list">
+      <form hx-put="./appendmodel/" hx-target="#models-list" hx-swap="beforeend" hx-on::after-request="this.reset()">
+        <tr>
+            <td>
+                <input name="provider" class="input px-0 input-sm" type="text" placeholder="openrouter"/>
+            </td>
+            <td>
+                <input name="model" class="input px-0 input-sm" type="text" placeholder="openchat/openchat-7b"/>
+            </td>
+            <td>
+                <button class="btn btn-sm w-20">Add</button>
+            </td>
+        </tr>
+      </form>
+        {{ range .TestModels}}
+          {{if .}}
+            {{template "selected-model-row.partials.html" .}}
+          {{ end }}
+        {{ end }}
+    </tbody>
+  </table>
+</div>

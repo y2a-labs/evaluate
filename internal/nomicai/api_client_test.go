@@ -1,10 +1,11 @@
-package nomicai
+package nomicai_test
 
 import (
 	"encoding/json"
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"script_validation/internal/nomicai"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func TestEmbedTest(t *testing.T) {
 	embeddings := [][]float64{{0.1, 0.2}, {0.3, 0.4}}
 	usage := map[string]int{"total_tokens": 100}
 
-	response := &EmbedTextResponse{
+	response := &nomicai.EmbedTextResponse{
 		Embeddings: embeddings,
 		Usage:      usage,
 	}
@@ -30,21 +31,23 @@ func TestEmbedTest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient("apiKey", server.URL)
-	value, err := client.EmbedText([]string{"test", "test2"}, Clustering)
+	client, err := nomicai.NewClient("apiKey", server.URL)
+	assert.Nil(t, err, "Expected no error when creating client")
+	value, err := client.EmbedText([]string{"test", "test2"}, nomicai.Clustering)
 	assert.Nil(t, err, "Should not return an error")
 	assert.Equal(t, response, value, "Should return 100 total tokens")
 
-	_, err = client.EmbedText([]string{""}, Clustering)
+	_, err = client.EmbedText([]string{""}, nomicai.Clustering)
 	assert.NotNil(t, err, "Should return an error")
 
 }
 
 func TestCosineSimilarity(t *testing.T) {
-	client := NewClient("apiKey")
+	client, err := nomicai.NewClient("apiKey")
+	assert.Nil(t, err, "Expected no error when creating client")
 
 	// Test case: vectors of different lengths
-	_, err := client.CosineSimilarity([]float64{1, 2}, []float64{1})
+	_, err = client.CosineSimilarity([]float64{1, 2}, []float64{1})
 	assert.NotNil(t, err, "Expected error for vectors of different lengths")
 
 	// Test case: one or both vectors are zero vectors

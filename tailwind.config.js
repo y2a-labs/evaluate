@@ -5,8 +5,8 @@ module.exports = {
   content: [
     './**/*.templ',
   ],
-  theme: {
-
+  daisyui: {
+    themes: ["light", "dark", "cupcake"],
   },
   plugins: [
     require('@tailwindcss/typography'),

@@ -1,15 +1,21 @@
 package models
 
-import "time"
-
 type Provider struct {
-	ID           string     `gorm:"primary_key" json:"id"`
-	CreatedAt    time.Time  `json:"created_at,omitempty"`
-	UpdatedAt    time.Time  `json:"updated_at,omitempty"`
-	DeletedAt    *time.Time `json:"-"`
-	BaseUrl      string     `gorm:"uniqueIndex"`
-	EnvKey       string
-	Requests     int
-	Interval     int
-	Unit         string
+	BaseModel
+	BaseUrl         string
+	Type            string
+	EncryptedAPIKey string `json:"-"`
+	Requests        int
+	Interval        int
+	Unit            string
+}
+
+type ProviderCreate struct {
+	// TODO add ressources
+	ID string `json:"id"`
+}
+
+type ProviderUpdate struct {
+	// TODO add ressources
+	ID string `json:"id"`
 }

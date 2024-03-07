@@ -1,4 +1,3 @@
-// embedtext.go
 package nomicai
 
 import (
@@ -34,26 +33,29 @@ type EmbedTextResponse struct {
 }
 
 type Client struct {
-	ApiKey string
+	apiKey  string
 	BaseURL string
 }
 
-const defaultBaseURL = "https://api-atlas.nomic.ai"
+const defaultBaseURL = "https://api-atlas.nomic.ai/v1"
 
-func NewClient(apiKey string, baseURLs ...string) *Client {
+func NewClient(apiKey string, baseURLs ...string) (*Client, error) {
 	baseURL := defaultBaseURL
 	if len(baseURLs) > 0 {
 		baseURL = baseURLs[0]
 	}
+	if apiKey == "" {
+		return nil, fmt.Errorf("apiKey cannot be empty")
+	}
 
 	return &Client{
-		ApiKey:  apiKey,
+		apiKey:  apiKey,
 		BaseURL: baseURL,
-	}
+	}, nil
 }
 
 func (c *Client) EmbedText(texts []string, taskType TaskType) (*EmbedTextResponse, error) {
-	apiURL := c.BaseURL + "/v1/embedding/text"
+	apiURL := c.BaseURL + "/embedding/text"
 
 	payload := EmbedTextRequest{
 		Texts:    texts,
@@ -77,7 +79,7 @@ func (c *Client) EmbedText(texts []string, taskType TaskType) (*EmbedTextRespons
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+c.ApiKey)
+	req.Header.Add("Authorization", "Bearer "+c.apiKey)
 
 	cli := &http.Client{}
 	resp, err := cli.Do(req)

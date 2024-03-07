@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+
 	"gorm.io/datatypes"
 )
 
@@ -10,21 +12,37 @@ type Embedding struct {
 
 type Message struct {
 	BaseModel
-	ChatMessage
-	MessageIndex       uint
-	ConversationID     string
-	MessageEvaluations []MessageEvaluation `gorm:"constraint:OnDelete:CASCADE;"`
-	Embedding          datatypes.JSONSlice[float64]
+	Role           string `example:"user" json:"role" enum:"user,system,assistant"`
+	Content        string `example:"Hello, world!" json:"content"`
+	MessageIndex   int
+	ConversationID string
+	PromptID       string
+	TestMessageID  string
+	TestMessages   []*Message `gorm:"foreignKey:TestMessageID" json:"-"` //
+	Metadata       MessageMetadata
 }
 
-func (message *Message) ConvertToChatMessage() ChatMessage {
-	return ChatMessage{
-		Role:    message.Role,
-		Content: message.Content,
+type MessageUpdate struct {
+	ID string `json:"id"`
+}
+
+type MessageCreate struct {
+	ID string `json:"id"`
+}
+
+func NewMessage(input *Message) (*Message, error) {
+	if input.Role == "" || input.Content == "" || input.ConversationID == "" || input.PromptID == "" {
+		return nil, fmt.Errorf("all fields are required")
 	}
+	return input, nil
 }
 
-type ChatMessage struct {
-	Role    string `example:"user" json:"role" enum:"user,system,assistant"`
-	Content string `example:"Hello, world!" json:"content"`
+func NewEvaluationMessage(input *Message) (*Message, error) {
+	if input.Role == "" || input.Content == "" || input.ConversationID == "" || input.PromptID == "" {
+		return nil, fmt.Errorf("all fields are required")
+	}
+	if input.Metadata.StartLatencyMs == 0 || input.Metadata.EndLatencyMs == 0 || input.Metadata.OutputTokenCount == 0 || input.Metadata.Embedding == nil {
+		return nil, fmt.Errorf("start latency, end latency, and token count are required")
+	}
+	return input, nil
 }

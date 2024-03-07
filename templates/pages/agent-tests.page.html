@@ -1,0 +1,29 @@
+{{ template "layout.html" . }}
+
+{{ define "page" }}
+    <form>
+        <input type="text" hx-put="./"  hx-trigger="keyup changed delay:500ms" placeholder="Agent Name" name="name" value="{{ .Name }}" class="input text-2xl w-full px-0 max-w-xs" /><br>
+        <input type="text" hx-put="./"  hx-trigger="keyup changed delay:500ms"  placeholder="Agent Description" name="description" value="{{ .Description }}" class="input text-lg px-0 w-full" />
+    </form>
+    {{template "agent-test-form.partials.html" .}}
+    <div class="text-3xl text-bold flex justify-between items-center justify-center align-center">
+        <h1>All Tests</h1>
+        <form method="post" action="/conversation/">
+            <input type="hidden" name="agentId" value="{{ .ID }}" />
+            <input type="hidden" name="IsTest" value="true" />
+            <button class="btn btn-neutral">+ New Test</button>
+        </form>
+    </div>
+        <div>
+            Prompt:
+            <select class="select ml-2 select-bordered">
+                    <option value="{{ .ID }}">something</option>
+            </select>
+        </div>
+    <div class="py-4 grid gap-4 md:grid-cols-2" id="tests">
+    {{if not .Conversations}}No Tests found{{end}}
+    {{ range .Conversations }}
+        {{template "test-card.partials.html" .}}
+    {{ end }}
+    </div>
+{{ end }}

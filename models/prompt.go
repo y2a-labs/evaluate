@@ -1,22 +1,20 @@
 package models
 
-type CreatePromptRequest struct {
-	ID string `path:"id"`
-}
-
-type FindOrCreatePromptRequest struct {
-	Body FindOrCreatePromptRequestBody `json:"body"`
-}
-
-type FindOrCreatePromptRequestBody struct {
-	Content string `json:"content" example:"Hello, world!"`
-}
-
-type FindOrCreatePromptResponse struct {
-	Body FindOrCreatePromptResponseBody `json:"body"`
-}
-
-type FindOrCreatePromptResponseBody struct {
-	Content string `json:"content"`
+type Prompt struct {
 	BaseModel
+	Content      string `json:"content"`
+	AgentID      string `json:"agent_id"`
+	BasePromptID string `json:"base_prompt_id"`
+	Version      int    `json:"version"`
+}
+
+type PromptCreate struct {
+	// TODO add ressources
+	ID string `json:"id"`
+}
+
+type PromptUpdate struct {
+	// TODO add ressources
+	ID      string `json:"id"`
+	Content string `json:"content"`
 }

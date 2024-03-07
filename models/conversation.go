@@ -4,13 +4,43 @@ import "gorm.io/datatypes"
 
 type Conversation struct {
 	BaseModel
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Messages    []Message
+	ModelID     string
+	PromptID    string `json:"prompt_id"`
+	Prompt      Prompt `json:"prompt"`
+	AgentID     string
+
+	IsTest     bool
+	TestModels datatypes.JSONSlice[TestModels]
+	TestCount  int
+}
+
+type TestModels struct {
+	Provider string
+	Model    string
+}
+
+type ChatCompletionMessage struct {
+	Role    string
+	Content string
+}
+
+type ConversationCreate struct {
 	Name          string `json:"name"`
-	Messages      []Message
-	EvalTestCount int `gorm:"default:1"`
-	EvalPrompt    string `gorm:"default:'You are a helpful assistant.'"`
-	EvalModels    datatypes.JSONSlice[string] `gorm:"default:'[\"openchat/openchat-7b\"]'"`
-	EvalStartIndex int `gorm:"default:0"`
-	EvalEndIndex   int `gorm:"default:0"`
+	Description   string `json:"description"`
+	AgentID       string
+	PromptID      string
+	MessageString string
+	IsTest        bool
+	Messages      []ChatCompletionMessage
+}
+
+type ConversationUpdate struct {
+	Name        string
+	Description string
+	Messages    []ChatCompletionMessage
 }
 
 type EvalConfig struct {
@@ -24,7 +54,7 @@ type CreateConversationInput struct {
 }
 
 type CreateConversationInputBody struct {
-	Name     string        `json:"name" example:"My Conversation"`
+	Name               string `json:"name" example:"My Conversation"`
 	ConversationString string `json:"conversation_string" example:"USER: Hello\nAI: Hi, what can I help you with today?!\nUSER: Do you know what the best way to make a cake is?\nAI: Yes, I do! I can help you with that."`
 }
 
@@ -39,9 +69,10 @@ type APIConversationOutput struct {
 }
 
 type APIChatMessage struct {
-	ChatMessage
-	MessageIndex uint `json:"message_index"`
-	ID string `json:"id"`
+	Content      string `json:"content"`
+	Role         string `json:"role"`
+	MessageIndex uint   `json:"message_index"`
+	ID           string `json:"id"`
 }
 
 type GetConversationInput struct {

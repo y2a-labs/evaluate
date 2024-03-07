@@ -1,0 +1,10 @@
+<div class="card bg-base-100 shadow-lg hover:bg-slate-100">
+    <div class="card-body">
+        <h2 class="card-title text-lg">{{ .Name }}</h2>
+        <p>{{ .Description }}</p>
+        <div class="card-actions justify-end">
+            <a class="btn button-ghost" href="/conversation/{{.ID}}">Open Test</a>
+            <button hx-delete="/conversation/{{.ID}}" hx-swap="delete" hx-target="closest  .card" class="btn btn-ghost">Delete Test</button>
+        </div>
+    </div>
+</div>

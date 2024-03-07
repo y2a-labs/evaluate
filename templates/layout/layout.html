@@ -1,0 +1,41 @@
+
+<html lang="en" data-theme="light" class="w-full h-full" >
+    <head>
+        <meta charset="UTF-8"/>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css"/>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="/static/js/htmx.min.js"></script>
+        <!--<script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script> -->
+    </head>
+    <body class="h-full overflow-hidden" hx-boost="true">
+        <div id="app" class="h-full overflow-y-auto"> <!-- hx-ext="sse" sse-connect="/sse" sse-swap="message"> -->
+            <div class="drawer lg:drawer-open">
+                <input id="my-drawer-2" type="checkbox" class="drawer-toggle"/>
+                <div class="drawer-content">
+                    <!-- Page content here -->
+                    <nav class="h-16 px-8 py-4">
+                        <label for="my-drawer-2" class="btn btn-sm drawer-button lg:hidden">Open drawer</label>
+                    </nav>
+                    
+                    <div class="container mx-auto max-w-3xl py-4 px-4">
+                        {{ template "page" .}}
+                    </div>
+                </div>
+                <div class="drawer-side">
+                    <label for="my-drawer-2" aria-label="close sidebar" class="drawer-overlay"></label>
+                    <ul class="menu p-4 w-80 min-h-full bg-base-200 text-base-content">
+                        <a href="/agent" class="aspect-w-16 aspect-h-9 pb-8">
+                            <image class="object-cover h-16" src="/static/img/y2a_logo.png"/>
+                        </a>
+                        <!-- Sidebar content here -->
+                        <li><a href="./tests">Tests</a></li>
+                        <li><a href="./conversations" >Conversations</a></li>
+                        <li><a href="./prompts" >Prompts</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
