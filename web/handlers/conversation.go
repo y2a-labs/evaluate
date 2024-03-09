@@ -14,22 +14,34 @@ import (
 )
 
 func (rs Resources) RegisterConversationRoutes(s *fuego.Server) {
-	ConversationGroup := fuego.Group(s, "/conversation")
+	ConversationGroup := fuego.Group(s, "/tests")
 	fuego.Get(ConversationGroup, "/", rs.getAllConversations)
 	fuego.Post(ConversationGroup, "/", rs.createTest)
-	fuego.Post(ConversationGroup, "/{id}/messages/", rs.addMessagesToConversation)
-	fuego.Post(ConversationGroup, "/{id}/test/", rs.runTest)
+	fuego.Post(ConversationGroup, "/{id}/messages", rs.addMessagesToConversation)
+	fuego.Post(ConversationGroup, "/{id}/run", rs.runTest)
+	fuego.Get(ConversationGroup, "/{id}/results", rs.getTestResults)
 
 	fuego.Get(ConversationGroup, "/{id}/", rs.getTest)
 	fuego.Put(ConversationGroup, "/{id}/", rs.updateConversation)
-	fuego.Put(ConversationGroup, "/{id}/appendmodel/", rs.appendTestModel)
-	fuego.Put(ConversationGroup, "/{id}/removemodel/", rs.removeTestModel)
-	fuego.Delete(ConversationGroup, "/{id}/", rs.deleteConversation)
+	fuego.Put(ConversationGroup, "/{id}/appendmodel", rs.appendTestModel)
+	fuego.Put(ConversationGroup, "/{id}/removemodel", rs.removeTestModel)
+	fuego.Delete(ConversationGroup, "/{id}", rs.deleteConversation)
 }
 
 type RunTestInput struct {
 	RunCount int    `form:"run_count"`
 	PromptID string `form:"prompt_id"`
+}
+
+
+func (rs Resources) getTestResults(c fuego.ContextNoBody) (fuego.HTML, error) {
+	conversationID := c.PathParam("id")
+	promptID := c.QueryParam("promptID")
+	results, err := rs.Service.GetTestResults(conversationID, promptID)
+	if err != nil {
+		return "", err
+	}
+	return c.Render("pages/test-results.page.html", results)
 }
 
 func (rs Resources) runTest(c *fuego.ContextWithBody[RunTestInput]) (any, error) {

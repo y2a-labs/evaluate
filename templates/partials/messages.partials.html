@@ -1,12 +1,33 @@
-<div id="messages">
+<div id="messages" class="flex flex-col space-y-4">
     {{ range .}}
-        <div class="chat chat-start">
-            <div class="chat-header">
+        <div>
+            <div class="font-semibold">
                 {{ .Role}}
             </div>
-            <div class="chat-bubble">
-                {{ .Content}}
-            </div>
+            {{ if eq .Role "assistant"}}
+            <details class="collapse collapse-arrow">
+                <summary class="collapse-title w-full px-0 py-2 m-0">
+                    <div class="pr-6">{{ .Content }}</div>
+                    <div class="pr-4">Average Score: {{ .Score }}%</div>
+                </summary>
+                <div class="collapse-content p-0 flex flex-col space-y-4">
+                    {{ range .TestMessages }}
+                    <div> {{ .Content }}
+                            <div class="pt-1 flex space-x-4">
+                                <div class="pr-4">Score: {{ .Score }}%</div>
+                                <div>
+                                    <div class="badge badge-ghost">{{ .LLMID }}blah</div>
+                                </div>
+                            </div>
+                        </div>
+                    {{ end }}
+                </div>
+              </details>
+            {{else}}
+                <div class="py-2 rounded-lg">
+                    {{ .Content}}
+                </div>
+            {{end}}
         </div>
     {{ end}}
 </div>

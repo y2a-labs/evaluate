@@ -7,6 +7,7 @@ import (
 	"io"
 	"script_validation/internal/nomicai"
 	"script_validation/models"
+	"strconv"
 	"sync"
 	"time"
 
@@ -87,39 +88,39 @@ func (s *Service) ExecuteTestWorkflow(input ExecuteTestInput) ([]*models.Message
 }
 
 func (s *Service) saveResultsInBatches(resultsChan chan TestResult, totalResultCount, batchSize int) ([]*models.Message, error) {
-    resultCount := 0
-    batchIndex := 0 // This will track where in allResults the next batch starts.
-    allResults := make([]*models.Message, totalResultCount)
-    
-    for result := range resultsChan {
-        if result.Err != nil {
-            return nil, result.Err
-        }
-        
-        // Place the result directly into the allResults slice at the correct position.
-        allResults[batchIndex+resultCount] = result.Message
-        resultCount++
-        
-        if resultCount == batchSize {
-            // Process the batch if needed, for example, saving to a database.
-            tx := s.Db.Save(allResults[batchIndex : batchIndex+batchSize])
-            if tx.Error != nil {
-                return nil, tx.Error
-            }
-            batchIndex += batchSize
-            resultCount = 0
-        }
-    }
-    
-    // Handle any remaining results if they don't fill a complete batch.
-    if resultCount > 0 {
-        tx := s.Db.Save(allResults[batchIndex : batchIndex+resultCount])
-        if tx.Error != nil {
-            return nil, tx.Error
-        }
-    }
-    
-    return allResults, nil
+	resultCount := 0
+	batchIndex := 0 // This will track where in allResults the next batch starts.
+	allResults := make([]*models.Message, totalResultCount)
+
+	for result := range resultsChan {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+
+		// Place the result directly into the allResults slice at the correct position.
+		allResults[batchIndex+resultCount] = result.Message
+		resultCount++
+
+		if resultCount == batchSize {
+			// Process the batch if needed, for example, saving to a database.
+			tx := s.Db.Save(allResults[batchIndex : batchIndex+batchSize])
+			if tx.Error != nil {
+				return nil, tx.Error
+			}
+			batchIndex += batchSize
+			resultCount = 0
+		}
+	}
+
+	// Handle any remaining results if they don't fill a complete batch.
+	if resultCount > 0 {
+		tx := s.Db.Save(allResults[batchIndex : batchIndex+resultCount])
+		if tx.Error != nil {
+			return nil, tx.Error
+		}
+	}
+
+	return allResults, nil
 }
 
 type TestResult struct {
@@ -127,10 +128,79 @@ type TestResult struct {
 	Err     error
 }
 
+type TestResultsOutput struct {
+	Overview []ModelTestResultsOverview
+	Test     models.Conversation
+}
+
+type ModelTestResultsOverview struct {
+	LLM                 models.LLM
+	Score               float64
+	FirstTokenLatencyMs int
+	TotalResponseTimeMs int
+}
+
+func (s *Service) GetTestResults(conversationID, promptID string) (*models.Conversation, error) {
+	// Assuming conversation struct is properly defined and includes Messages that can have Metadata and TestMessages.
+	conversation := &models.Conversation{BaseModel: models.BaseModel{ID: conversationID}}
+
+	// Loads the conversation
+	tx := s.Db.First(conversation)
+
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	// Loads the messages without a test_message_id, then preload all test messages and their metadata
+	tx = s.Db.Model(&models.Message{}).
+		Preload("Metadata").
+		Preload("TestMessages.Metadata").
+		Where("test_message_id = ?", "").
+		Order("message_index").
+		Find(&conversation.Messages)
+
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	for _, message := range conversation.Messages {
+		// If the message is not an assistant message, skip it
+		if message.Role != "assistant" {
+			continue
+		}
+		// Calculate the score for every TestMessage
+		scoreSum := 0.0
+		for _, testMessage := range message.TestMessages {
+			// should be fixed
+			score, err := s.embeddingProviders["nomicai"].client.CosineSimilarity(testMessage.Metadata.Embedding, message.Metadata.Embedding)
+			if err != nil {
+				return nil, fmt.Errorf("failed to calculate cosine similarity: %w", err)
+			}
+			scoreStr := fmt.Sprintf("%.2f", score*100)
+			testMessage.Score, _ = strconv.ParseFloat(scoreStr, 64)
+			scoreSum += testMessage.Score
+		}
+		// Calculate the average score for the message
+		message.Score = scoreSum / float64(len(message.TestMessages))
+		scoreStr := fmt.Sprintf("%.2f", message.Score)
+		message.Score, _ = strconv.ParseFloat(scoreStr, 64)
+	}
+
+	if promptID == "" {
+		promptID = conversation.PromptID
+	}
+
+	prompt := &models.Prompt{BaseModel: models.BaseModel{ID: promptID}}
+
+	conversation.Prompt = *prompt
+
+	return conversation, nil
+}
+
 func (s *Service) runTest(input *RunTestInput) (chan TestResult, int, error) {
 
 	// Set the prompt as the first message in the conversation
-	input.Conversation.Messages = append([]models.Message{{Role: "system", Content: input.Prompt.Content}}, input.Conversation.Messages...)
+	input.Conversation.Messages = append([]*models.Message{{Role: "system", Content: input.Prompt.Content}}, input.Conversation.Messages...)
 
 	// Gets the list of end indexes to test on
 	testIndexes, err := getTestIndexes(input.Conversation.Messages)
@@ -186,7 +256,7 @@ func (s *Service) runTest(input *RunTestInput) (chan TestResult, int, error) {
 	return testResultChan, testCount, nil
 }
 
-func processPrompt(ctx context.Context, messages []models.Message, model string, llmClient *openai.Client, embeddingClient *nomicai.Client) (*models.Message, error) {
+func processPrompt(ctx context.Context, messages []*models.Message, model string, llmClient *openai.Client, embeddingClient *nomicai.Client) (*models.Message, error) {
 
 	// Turn the message into openai format
 	openaiMessages := make([]openai.ChatCompletionMessage, len(messages))
@@ -252,7 +322,7 @@ func processPrompt(ctx context.Context, messages []models.Message, model string,
 	message := &models.Message{
 		Role:    "assistant",
 		Content: responseBuffer,
-		Metadata: models.MessageMetadata{
+		Metadata: &models.MessageMetadata{
 			BaseModel: models.BaseModel{
 				ID: uuid.NewString(),
 			},
@@ -266,7 +336,7 @@ func processPrompt(ctx context.Context, messages []models.Message, model string,
 	return message, nil
 }
 
-func getTestIndexes(messages []models.Message) ([]int, error) {
+func getTestIndexes(messages []*models.Message) ([]int, error) {
 	evalIndexes := []int{}
 	// Gets the list of all of the messages to run eval on
 	for i, message := range messages {

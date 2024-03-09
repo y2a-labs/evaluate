@@ -1,6 +1,6 @@
 <div class="text-lg">Models</div>
 <div class="overflow-x-auto max-h-32 overflow-y-auto">
-  <table class="table table-sm">
+  <table class="table table-sm max-w-full">
     <!-- head -->
     <thead>
       <tr>
@@ -10,7 +10,7 @@
       </tr>
     </thead>
     <tbody id="models-list">
-      <form hx-put="./appendmodel/" hx-target="#models-list" hx-swap="beforeend" hx-on::after-request="this.reset()">
+      <form hx-put="./appendmodel" hx-target="#models-list" hx-swap="beforeend" hx-on::after-request="this.reset()">
         <tr>
             <td>
                 <input name="provider" class="input px-0 input-sm" type="text" placeholder="openrouter"/>

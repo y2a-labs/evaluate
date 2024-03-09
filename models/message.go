@@ -17,9 +17,11 @@ type Message struct {
 	MessageIndex   int
 	ConversationID string
 	PromptID       string
+	LLMID          string
 	TestMessageID  string
 	TestMessages   []*Message `gorm:"foreignKey:TestMessageID" json:"-"` //
-	Metadata       MessageMetadata
+	Metadata       *MessageMetadata
+	Score          float64 `gorm:"-"`
 }
 
 type MessageUpdate struct {

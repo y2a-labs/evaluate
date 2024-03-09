@@ -3,8 +3,8 @@
         <h2 class="card-title text-lg">{{ .Name }}</h2>
         <p>{{ .Description }}</p>
         <div class="card-actions justify-end">
-            <a class="btn button-ghost" href="/conversation/{{.ID}}">Open Test</a>
-            <button hx-delete="/conversation/{{.ID}}" hx-swap="delete" hx-target="closest  .card" class="btn btn-ghost">Delete Test</button>
+            <a class="btn button-ghost" href="/tests/{{.ID}}/run/">Open Test</a>
+            <button hx-delete="/tests/{{.ID}}" hx-swap="delete" hx-target="closest  .card" class="btn btn-ghost">Delete Test</button>
         </div>
     </div>
 </div>

@@ -12,10 +12,19 @@ type Provider struct {
 
 type ProviderCreate struct {
 	// TODO add ressources
-	ID string `json:"id"`
+	Id       string
+	BaseUrl  string
+	Type     string
+	ApiKey   string
+	Requests int
+	Interval int
+	Unit     string
 }
 
 type ProviderUpdate struct {
-	// TODO add ressources
-	ID string `json:"id"`
+	ApiKey   string
+	BaseUrl  string
+	Requests int
+	Interval int
+	Unit     string
 }

@@ -9,10 +9,8 @@
             {{ template "test-form.partials.html" .}}
             <div>
                 <h1 class="text-xl pb-2"> Test Conversation</h1>
-                <div class="border border-solid rounded-xl p-4 h-96 overflow-y-scroll">
                     {{template "messages.partials.html" .Messages}}
                     {{template "add-messages-form.partials.html" .}}
-                </div>
             </div>
         </div>
 {{ end }}

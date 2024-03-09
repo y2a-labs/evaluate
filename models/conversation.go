@@ -1,12 +1,15 @@
 package models
 
-import "gorm.io/datatypes"
+import (
+	"github.com/sashabaranov/go-openai"
+	"gorm.io/datatypes"
+)
 
 type Conversation struct {
 	BaseModel
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Messages    []Message
+	Messages    []*Message
 	ModelID     string
 	PromptID    string `json:"prompt_id"`
 	Prompt      Prompt `json:"prompt"`
@@ -34,13 +37,13 @@ type ConversationCreate struct {
 	PromptID      string
 	MessageString string
 	IsTest        bool
-	Messages      []ChatCompletionMessage
+	Messages      []openai.ChatCompletionMessage
 }
 
 type ConversationUpdate struct {
 	Name        string
 	Description string
-	Messages    []ChatCompletionMessage
+	Messages    []openai.ChatCompletionMessage
 }
 
 type EvalConfig struct {

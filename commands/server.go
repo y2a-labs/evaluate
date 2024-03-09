@@ -39,11 +39,6 @@ type responseWriter struct {
 	statusCode int
 }
 
-// WriteHeader captures the status code and calls the original WriteHeader method.
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
 
 // logRequest is a middleware that logs the HTTP method, URI, status code, and the time it took to process the request.
 func logRequest(next http.Handler) http.Handler {
@@ -100,6 +95,8 @@ func StartServer() {
 	webResources.RegisterMessageMetadataRoutes(webGroup)
 
 	apiResources := api.Resources{Service: service}
+
+	fuego.Post(server, "/v1/chat/completions", apiResources.ProxyOpenai)
 
 	apiGroup := fuego.Group(server, "/v1/api")
 	apiResources.RegisterAgentRoutes(apiGroup)
