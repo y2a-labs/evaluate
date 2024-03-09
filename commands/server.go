@@ -39,7 +39,6 @@ type responseWriter struct {
 	statusCode int
 }
 
-
 // logRequest is a middleware that logs the HTTP method, URI, status code, and the time it took to process the request.
 func logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -66,6 +65,16 @@ func logRequest(next http.Handler) http.Handler {
 	})
 }
 
+func removeURLTrailingSlash(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
+			http.Redirect(w, r, strings.TrimRight(r.URL.Path, "/"), http.StatusMovedPermanently)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func StartServer() {
 	server := fuego.NewServer(
 		fuego.WithPort(":3000"),
@@ -80,6 +89,7 @@ func StartServer() {
 	webResources := web.Resources{Service: service}
 	webGroup := fuego.Group(server, "/")
 	fuego.Use(webGroup, addURLPathToContextMiddleware)
+	fuego.Use(webGroup, removeURLTrailingSlash)
 
 	// Serve the static files
 	staticFiles := http.FileServer(http.Dir("./static"))

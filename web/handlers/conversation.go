@@ -24,7 +24,7 @@ func (rs Resources) RegisterConversationRoutes(s *fuego.Server) {
 	fuego.Get(ConversationGroup, "/{id}/", rs.getTest)
 	fuego.Put(ConversationGroup, "/{id}/", rs.updateConversation)
 	fuego.Put(ConversationGroup, "/{id}/appendmodel", rs.appendTestModel)
-	fuego.Put(ConversationGroup, "/{id}/removemodel", rs.removeTestModel)
+	fuego.Put(ConversationGroup, "/{id}/removemodel", rs.deleteTestModel)
 	fuego.Delete(ConversationGroup, "/{id}", rs.deleteConversation)
 }
 
@@ -32,7 +32,6 @@ type RunTestInput struct {
 	RunCount int    `form:"run_count"`
 	PromptID string `form:"prompt_id"`
 }
-
 
 func (rs Resources) getTestResults(c fuego.ContextNoBody) (fuego.HTML, error) {
 	conversationID := c.PathParam("id")
@@ -116,8 +115,8 @@ func (rs Resources) createTest(c *fuego.ContextWithBody[models.ConversationCreat
 }
 
 type ModelInput struct {
-	Provider string
-	Model    string
+	Provider string `form:"provider"`
+	Model    string `form:"model"`
 }
 
 func (rs Resources) appendTestModel(c *fuego.ContextWithBody[ModelInput]) (fuego.HTML, error) {
@@ -156,7 +155,7 @@ func (rs Resources) appendTestModel(c *fuego.ContextWithBody[ModelInput]) (fuego
 	return c.Render("partials/selected-model-row.partials.html", model)
 }
 
-func (rs Resources) removeTestModel(c *fuego.ContextWithBody[ModelInput]) (fuego.HTML, error) {
+func (rs Resources) deleteTestModel(c *fuego.ContextWithBody[ModelInput]) (fuego.HTML, error) {
 	id := c.PathParam("id")
 	body, err := c.Body()
 	if err != nil {
@@ -197,7 +196,12 @@ func (rs Resources) getTest(c fuego.ContextNoBody) (fuego.HTML, error) {
 		return "", tx.Error
 	}
 
-	return c.Render("pages/conversation.page.html", conversation)
+	llmProviders := rs.Service.GetLLMProviderNames()
+
+	return c.Render("pages/test-run.page.html", map[string]any{
+		"test": conversation,
+		"llmProviders": llmProviders,
+	})
 }
 
 func (rs Resources) updateConversation(c *fuego.ContextWithBody[models.ConversationUpdate]) (*models.Conversation, error) {

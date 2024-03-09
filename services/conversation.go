@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"script_validation/internal/nomicai"
 	"script_validation/models"
+
+	"github.com/google/uuid"
 )
 
 func (s *Service) GetConversation(id string) (*models.Conversation, error) {
@@ -34,6 +36,23 @@ func (s *Service) CreateConversation(input models.ConversationCreate) (*models.C
 		PromptID:    input.PromptID,
 		IsTest:      input.IsTest,
 	}
+
+	if len(input.Messages) > 0 {
+		// Create the messages
+		messages := make([]*models.Message, len(input.Messages))
+		for i, message := range input.Messages {
+			messages[i] = &models.Message{
+				BaseModel:      models.BaseModel{ID: uuid.NewString()},
+				Role:           message.Role,
+				Content:        message.Content,
+				MessageIndex:   i,
+				ConversationID: conversation.ID,
+			}
+		}
+
+		conversation.Messages = messages
+	}
+
 	tx := s.Db.Create(conversation)
 	if tx.Error != nil {
 		return nil, tx.Error

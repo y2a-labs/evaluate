@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"script_validation/models"
 	"strings"
+	"time"
 
 	"github.com/go-fuego/fuego"
+	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -22,11 +25,13 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 	var responseContent string
 
 	if body.Stream {
-		stream, err := rs.Service.ProxyOpenaiStream(c.Context(), body, agentId)
+		startTime := time.Now()
+		stream, conversation, err := rs.Service.ProxyOpenaiStream(c.Context(), body, agentId)
 		if err != nil {
 			return nil, err
 		}
 		responseBuffer := strings.Builder{}
+		firstTokenLatencyMs := 0
 		for {
 			resp, err := stream.Recv()
 			// If the stream is done, break out of the loop
@@ -45,6 +50,9 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 			// Add the content of resp.Choices[0].Delta.Content to the response buffer
 			if len(resp.Choices) > 0 {
 				responseBuffer.WriteString(resp.Choices[0].Delta.Content)
+				if firstTokenLatencyMs == 0 {
+					firstTokenLatencyMs = int(time.Since(startTime).Milliseconds())
+				}
 			}
 
 			respBytes, err := json.Marshal(resp)
@@ -62,9 +70,29 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 		// Get the accumulated content from the response buffer
 		responseContent := responseBuffer.String()
 
+		message := &models.Message{
+			BaseModel:      models.BaseModel{ID: uuid.NewString()},
+			Role:           "assistant",
+			Content:        responseContent,
+			ConversationID: conversation.ID,
+			LLMID:          body.Model,
+			MessageIndex:   len(body.Messages),
+			Metadata: &models.MessageMetadata{
+				BaseModel:      models.BaseModel{ID: uuid.NewString()},
+				StartLatencyMs: firstTokenLatencyMs,
+				EndLatencyMs:   int(time.Since(startTime).Milliseconds()),
+			},
+		}
+		conversation.Messages = append(conversation.Messages, message)
+
+		tx := rs.Service.Db.Save(conversation)
+		if tx.Error != nil {
+			return nil, tx.Error
+		}
+
 		fmt.Println("resp: ", responseContent)
 	} else {
-		response, err := rs.Service.ProxyOpenaiChat(c.Context(), body, agentId)
+		response, _, err := rs.Service.ProxyOpenaiChat(c.Context(), body, agentId)
 		if err != nil {
 			return nil, err
 		}

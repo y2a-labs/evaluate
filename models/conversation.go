@@ -35,7 +35,6 @@ type ConversationCreate struct {
 	Description   string `json:"description"`
 	AgentID       string
 	PromptID      string
-	MessageString string
 	IsTest        bool
 	Messages      []openai.ChatCompletionMessage
 }

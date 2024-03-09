@@ -13,7 +13,11 @@
       <form hx-put="./appendmodel" hx-target="#models-list" hx-swap="beforeend" hx-on::after-request="this.reset()">
         <tr>
             <td>
-                <input name="provider" class="input px-0 input-sm" type="text" placeholder="openrouter"/>
+                <select class="select w-sm select-sm" name="provider">
+                  {{ range .llmProviders }}
+                    <option value="{{.}}">{{.}}</option>
+                  {{ end}}
+                </select>
             </td>
             <td>
                 <input name="model" class="input px-0 input-sm" type="text" placeholder="openchat/openchat-7b"/>
@@ -23,7 +27,7 @@
             </td>
         </tr>
       </form>
-        {{ range .TestModels}}
+        {{ range .test.TestModels}}
           {{if .}}
             {{template "selected-model-row.partials.html" .}}
           {{ end }}

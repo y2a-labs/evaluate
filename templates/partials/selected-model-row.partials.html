@@ -1,5 +1,11 @@
 <tr>
-    <td>{{ .Provider }}</td>
+    <td> {{ .Provider }} </td>
     <td>{{ .Model }}</td>
-    <td><button hx-put="./removemodel" hx-target="closest tr" class="btn btn-sm w-20">Remove</button></td>
+    <td>
+        <form hx-put="./removemodel" hx-target="closest tr">
+            <input type="hidden" name="provider" value="{{ .Provider }}">
+            <input type="hidden" name="model" value="{{ .Model }}">
+            <button class="btn btn-sm w-20">Remove</button>
+        </form>
+    </td>
 </tr>

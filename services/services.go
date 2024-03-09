@@ -38,6 +38,14 @@ type embeddingProvider struct {
 	client *nomicai.Client
 }
 
+func (s *Service) GetLLMProviderNames() []string {
+	names := make([]string, 0, len(s.llmProviders))
+	for k := range s.llmProviders {
+		names = append(names, k)
+	}
+	return names
+}
+
 func New(dbPath, envPath string) *Service {
 	aesKey, err := loadOrCreateAESKey(envPath)
 	if err != nil {
