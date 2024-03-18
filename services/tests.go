@@ -140,6 +140,15 @@ type ModelTestResultsOverview struct {
 	TotalResponseTimeMs int
 }
 
+func (s *Service) GetTestList() ([]*models.Conversation, error) {
+	conversations := []*models.Conversation{}
+	tx := s.Db.Where("is_test = ?", true).Limit(50).Order("created_at DESC").Find(&conversations)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	return conversations, nil
+}
+
 func (s *Service) GetTest(conversationID string, selectedVersion int) (*models.Conversation, error) {
 
 	conversation, err := s.GetConversationWithMessages(conversationID, selectedVersion)
@@ -354,4 +363,5 @@ func getTestIndexes(messages []*models.Message, testMessageID string) ([]int, er
 
 type TestManager interface {
 	ExecuteTestWorkflow(input ExecuteTestInput) ([]*models.Message, error)
+	GetTestList() ([]*models.Conversation, error)
 }

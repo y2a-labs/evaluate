@@ -11,6 +11,7 @@ import (
 func (rs Resources) RegisterConversationRoutes(s *fuego.Server) {
 	ConversationGroup := fuego.Group(s, "/conversations")
 	fuego.Post(ConversationGroup, "", rs.createTest)
+	fuego.Get(ConversationGroup, "", rs.getConversationList)
 
 	fuego.Get(ConversationGroup, "/{id}", rs.getConversation)
 	fuego.Put(ConversationGroup, "/{id}", rs.updateConversation)
@@ -25,6 +26,14 @@ func (rs Resources) getConversation(c fuego.ContextNoBody) (fuego.HTML, error) {
 	}
 
 	return c.Render("pages/conversation.page.html", conversation)
+}
+
+func (rs Resources) getConversationList(c fuego.ContextNoBody) (fuego.HTML, error) {
+	conversations, err := rs.Service.GetAllConversations()
+	if err != nil {
+		return "", err
+	}
+	return c.Render("pages/conversations.page.html", conversations)
 }
 
 func (rs Resources) updateConversation(c *fuego.ContextWithBody[models.ConversationUpdate]) (*models.Conversation, error) {

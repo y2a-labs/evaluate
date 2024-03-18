@@ -165,8 +165,6 @@ func connectDB(db_name string) *gorm.DB {
 		&models.LLM{},
 		&models.MessageMetadata{},
 		&models.Provider{},
-		&models.Agent{},
-		&models.Prompt{},
 	)
 	db.Set("gorm:time_zone", "UTC")
 	return db

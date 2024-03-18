@@ -1,0 +1,16 @@
+{{ template "layout.html" . }}
+
+{{ define "page" }}
+    <div class="text-3xl text-bold flex justify-between items-center justify-center align-center">
+        <h1>All Tests</h1>
+        <form method="post" action="/tests">
+            <button class="btn btn-neutral">+ New Test</button>
+        </form>
+    </div>
+    <div class="py-4 grid gap-4 md:grid-cols-2" id="tests">
+    {{if not .}}No Tests found{{end}}
+    {{ range . }}
+        {{template "test-card.partials.html" .}}
+    {{ end }}
+    </div>
+{{ end }}

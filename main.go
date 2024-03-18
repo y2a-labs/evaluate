@@ -10,32 +10,30 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name:        "Conversation Validator",
+		Name:        "Conversation Evaluation",
 		Description: "Know what LLM to use",
 		Commands: []*cli.Command{
 			{
 				Name:    "server",
 				Aliases: []string{"s"},
 				Usage:   "start the server",
-				Action: func(cCtx *cli.Context) error {
-					commands.StartServer()
-					return nil
-				},
-			},
-			{
-				Name:    "generate",
-				Aliases: []string{"g"},
-				Usage:   "Generate a new template",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     "name",
-						Aliases:  []string{"n"},
-						Usage:    "Name to insert into the template",
-						Required: true,
+						Name:        "port",
+						Aliases:     []string{"p"},
+						Usage:       "The port to run on",
+						Value:       "3000",
+					},
+					&cli.BoolFlag{
+						Name:        "dev",
+						Usage:       "Enable Dev mode",
+						Value:       false,
 					},
 				},
-				Action: func(c *cli.Context) error {
-					commands.TraverseFolder("./models")
+				Action: func(cCtx *cli.Context) error {
+					port := cCtx.String("port")
+					dev := cCtx.Bool("dev")
+					commands.StartServer(port, dev)
 					return nil
 				},
 			},

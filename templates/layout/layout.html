@@ -11,10 +11,8 @@
             type="module"
             src="https://cdn.jsdelivr.net/gh/zerodevx/zero-md@2/dist/zero-md.min.js"
         ></script>
-        <script src="https://unpkg.com/htmx.org/dist/ext/preload.js"></script>
-        <!--<script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script> -->
     </head>
-    <body class="h-full overflow-hidden" hx-boost="true" hx-ext="preload">
+    <body class="h-full overflow-hidden" hx-boost="true">
         <div id="app" class="h-full overflow-y-auto"> <!-- hx-ext="sse" sse-connect="/sse" sse-swap="message"> -->
             <div class="drawer lg:drawer-open">
                 <input id="my-drawer-2" type="checkbox" class="drawer-toggle"/>
@@ -36,8 +34,11 @@
                         </a>
                         <!-- Sidebar content here -->
                         
-                        <li><a href="./conversations" >Conversations</a></li>
-                        <li><a href="./tests" >Tests</a></li>
+                        <li><a href="/conversations" >Conversations</a></li>
+                        <li><a href="/tests" >Tests</a></li>
+                        <li><a href="/chat" >Chat</a></li>
+                        <li><a href="/providers" >Providers</a></li>
+                        <li><a href="/models" >Models</a></li>
                     </ul>
                 </div>
             </div>

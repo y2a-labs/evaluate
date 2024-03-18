@@ -57,9 +57,7 @@ func (s *Service) CreateConversation(input models.ConversationCreate) (*models.C
 	conversation := &models.Conversation{
 		Name:        input.Name,
 		Description: input.Description,
-		AgentID:     input.AgentID,
 		ModelID:     input.LLMID,
-		PromptID:    input.PromptID,
 		Version: 0,
 		IsTest:      input.IsTest,
 		LastMessageIndex: len(input.Messages),
@@ -91,7 +89,7 @@ func (s *Service) CreateConversation(input models.ConversationCreate) (*models.C
 
 func (s *Service) GetAllConversations() (*[]models.Conversation, error) {
 	conversations := &[]models.Conversation{}
-	tx := s.Db.Find(conversations)
+	tx := s.Db.Limit(50).Order("created_at DESC").Where("is_test = ?", false).Find(conversations)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}

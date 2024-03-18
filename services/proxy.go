@@ -55,7 +55,7 @@ func (s *Service) ProxyOpenaiStream(ctx context.Context, req openai.ChatCompleti
 		return nil, nil, err
 	}
 
-	conversation, err := s.CreateConversation(models.ConversationCreate{AgentID: agentId, Messages: req.Messages, LLMID: req.Model})
+	conversation, err := s.CreateConversation(models.ConversationCreate{Messages: req.Messages, LLMID: req.Model})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,7 +88,7 @@ func (s *Service) ProxyOpenaiChat(ctx context.Context, req openai.ChatCompletion
 		return nil, nil, err
 	}
 
-	conversation, err := s.CreateConversation(models.ConversationCreate{AgentID: agentId, Messages: req.Messages, LLMID: req.Model})
+	conversation, err := s.CreateConversation(models.ConversationCreate{Messages: req.Messages, LLMID: req.Model})
 	if err != nil {
 		return nil, nil, err
 	}

@@ -3,8 +3,6 @@ module script_validation
 go 1.22.0
 
 require (
-	github.com/PuerkitoBio/goquery v1.9.1
-	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-fuego/fuego v0.12.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -19,7 +17,6 @@ require (
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect

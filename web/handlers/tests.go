@@ -13,6 +13,7 @@ import (
 
 func (rs Resources) RegisterTestRoutes(s *fuego.Server) {
 	TestGroup := fuego.Group(s, "/tests")
+	fuego.Get(TestGroup, "", rs.getTestList)
 	fuego.Post(TestGroup, "", rs.createTest)
 	fuego.Delete(TestGroup, "/{id}", rs.deleteTest)
 	fuego.Put(TestGroup, "/{id}", rs.updateTest)
@@ -22,6 +23,14 @@ func (rs Resources) RegisterTestRoutes(s *fuego.Server) {
 	fuego.Post(TestGroup, "/{id}/messages", rs.addMessagesToTest)
 	fuego.Get(TestGroup, "/{id}", rs.getTest)
 	fuego.Post(TestGroup, "/{id}", rs.runTest)
+}
+
+func (rs Resources) getTestList(c fuego.ContextNoBody) (fuego.HTML, error) {
+	tests, err := rs.Service.GetTestList()
+	if err != nil {
+		return "", err
+	}
+	return c.Render("pages/tests.page.html", tests)
 }
 
 type RunTestInput struct {
@@ -83,14 +92,6 @@ func (rs Resources) createTest(c *fuego.ContextWithBody[models.ConversationCreat
 	}
 	if body.Name == "" {
 		body.Name = "Untitled Name"
-	}
-	if body.PromptID == "" {
-		prompt := &models.Prompt{}
-		tx := rs.Service.Db.Where("agent_id = ?", body.AgentID).Where("base_prompt_id = ?", "").First(prompt)
-		if tx.Error != nil {
-			return "", tx.Error
-		}
-		body.PromptID = prompt.ID
 	}
 	conversation, err := rs.Service.CreateConversation(body)
 	if err != nil {

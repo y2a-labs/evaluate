@@ -1,10 +1,6 @@
 {{ template "layout.html" . }}
 
 {{ define "page" }}
-    <form>
-        <input type="text" hx-put="./"  hx-trigger="keyup changed delay:500ms" placeholder="Agent Name" name="name" value="{{ .Name }}" class="input text-2xl w-full px-0 max-w-xs" /><br>
-        <input type="text" hx-put="./"  hx-trigger="keyup changed delay:500ms"  placeholder="Agent Description" name="description" value="{{ .Description }}" class="input text-lg px-0 w-full" />
-    </form>
     <div class="overflow-x-auto">
         <table class="table">
             <!-- head -->
@@ -18,13 +14,13 @@
             </thead>
             <tbody>
             <!-- row 2 -->
-            {{ range .Conversations}}
+            {{ range .}}
             
             <tr class="hover">
                 <td><a href="/conversations/{{ .ID }}">{{.CreatedAt}}</a></td>
                 <td><a href="./">{{ .Name }}</a></td>
                 <td><a href="./"><div class="badge badge-ghost">{{ .ModelID }}</div></a></td>
-                <td><a href="./">Purple</a></td>
+                <td><a href="./"></a></td>
             </tr>
             
             {{ end}}
