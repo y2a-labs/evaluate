@@ -7,18 +7,23 @@ import (
 )
 
 func (rs Resources) RegisterLLMRoutes(s *fuego.Server) {
-	LLMGroup := fuego.Group(s, "/lLM")
+	LLMGroup := fuego.Group(s, "/llms")
 
-	fuego.Get(LLMGroup, "/", rs.getAllLLMs)
-	fuego.Post(LLMGroup, "/", rs.createLLM)
+	fuego.Get(LLMGroup, "", rs.getLLMs)
+	fuego.Post(LLMGroup, "", rs.createLLM)
 
 	fuego.Get(LLMGroup, "/{id}", rs.getLLM)
 	fuego.Put(LLMGroup, "/{id}", rs.updateLLM)
 	fuego.Delete(LLMGroup, "/{id}", rs.deleteLLM)
 }
 
-func (rs Resources) getAllLLMs(c fuego.ContextNoBody) (*[]models.LLM, error) {
-	return rs.Service.GetAllLLMs()
+func (rs Resources) getLLMs(c fuego.ContextNoBody) (fuego.HTML, error) {
+	provider := c.QueryParam("provider")
+	llms, err := rs.Service.GetLLMByProvider(provider)
+	if err != nil {
+		return "", err
+	}
+	return c.Render("partials/llms-select.partials.html",llms)
 }
 
 func (rs Resources) createLLM(c *fuego.ContextWithBody[models.LLMCreate]) (*models.LLM, error) {

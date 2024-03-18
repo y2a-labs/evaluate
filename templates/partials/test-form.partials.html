@@ -1,17 +1,9 @@
-<form method="post" action="./test/" class="flex flex-col space-y-2">
-    <label class="form-control">
-    <div class="">
-        <span class="label-text">Prompt Version:</span>
-        <select name="promptID" class="select select-sm w-16">
-            <option selected value="{{ .Prompt.ID }}">{{ .Prompt.Version }}</option>
-        </select>
-    </div>
-    <textarea class="textarea textarea-bordered h-24" placeholder="Your Prompt Here">{{ .Prompt.Content }}</textarea>
-    </label>
+<form method="post" action="" class="flex flex-col space-y-2">
     <label class="flex justify-between text-sm items-center gap-2">
         <div>
             Run Count:
             <input type="number" class="input input-sm max-w-16" name="runCount" value="1"/>
+            <input type="number" hidden class="input input-sm max-w-16" name="testMessageID" value=""/>
         </div>
         <button class="btn btn-sm btn-neutral">Run Tests</button>
     </label>

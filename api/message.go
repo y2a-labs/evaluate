@@ -54,5 +54,5 @@ func (rs Resources) updateMessage(c *fuego.ContextWithBody[models.MessageUpdate]
 
 func (rs Resources) deleteMessage(c *fuego.ContextNoBody) (*models.Message, error) {
 	id := c.PathParam("id")
-	return rs.Service.DeleteMessage(id)
+	return nil, rs.Service.DeleteMessage(id)
 }

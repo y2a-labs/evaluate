@@ -3,11 +3,13 @@ package service
 
 import (
 	"script_validation/models"
+
+	"github.com/google/uuid"
 )
 
 func (s *Service) GetMessage(id string) (*models.Message, error) {
 	message := &models.Message{BaseModel: models.BaseModel{ID: id}}
-	tx := s.Db.First(message)
+	tx := s.Db.Preload("Metadata").First(message)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -33,32 +35,61 @@ func (s *Service) GetAllMessages() (*[]models.Message, error) {
 }
 
 func (s *Service) UpdateMessage(id string, input models.MessageUpdate) (*models.Message, error) {
-	message := &models.Message{BaseModel: models.BaseModel{ID: id}}
-	tx := s.Db.First(message)
-	if tx.Error != nil {
-		return nil, tx.Error
+	message, err := s.GetMessage(id)
+	if err != nil {
+		return nil, err
 	}
-	// Apply the updates to the model
-	// message.Field = input.Field
-	tx = s.Db.Updates(message)
-	if tx.Error != nil {
-		return nil, tx.Error
+	conversation, err := s.GetConversation(message.ConversationID)
+	if err != nil {
+		return nil, err
 	}
-	return message, nil
+
+	// Increment the version
+	conversation.Version++
+
+	// Apply the updates to the message
+	if input.Role != "" {
+		message.Role = input.Role
+	}
+	if input.Content != "" {
+		message.Content = input.Content
+	}
+
+	// Generate a new message ID and update the version
+	newMessage := message
+	newMessage.ConversationVersion = conversation.Version
+	newMessage.ID = uuid.NewString()
+
+	s.Db.Save(conversation)
+	s.Db.Create(newMessage)
+
+	go appendMessageEmbeddings([]*models.Message{newMessage}, s)
+
+	return newMessage, nil
 }
 
-func (s *Service) DeleteMessage(id string) (*models.Message, error) {
-	message := &models.Message{BaseModel: models.BaseModel{ID: id}}
+func (s *Service) DeleteMessage(id string) error {
+	message, err := s.GetMessage(id)
+	if err != nil {
+		return err
+	}
+	conversation, err := s.GetConversation(message.ConversationID)
+	if err != nil {
+		return err
+	}
+	// Increment the version
+	conversation.Version++
+	s.Db.Save(conversation)
 
-	tx := s.Db.First(message)
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-	tx = s.Db.Delete(message)
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-	return nil, nil
+	// Generate a new message ID and update the version
+	newMessage := message
+	newMessage.ConversationVersion = conversation.Version
+	newMessage.ID = uuid.NewString()
+	newMessage.Role = ""
+
+	s.Db.Create(newMessage)
+
+	return nil
 }
 
 type MessageManager interface {

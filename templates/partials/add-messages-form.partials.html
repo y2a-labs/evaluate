@@ -1,17 +1,12 @@
 
-<div class="collapse">
-  <input type="checkbox" /> 
-  <div class="collapse-title align-center font-medium">
-    + Add Messages
+<form class="w-full" hx-post="/tests/{{.ID}}/messages" hx-target="#messages" hx-swap="beforeend">
+  <div>
+    Role: <select class="select select-sm" name="role">
+      <option>user</option>
+      <option>system</option>
+      <option>assistant</option>
+    </select>
+    <button class="btn ml-auto btn-sm mt-2">Submit</button>
   </div>
-  <div class="collapse-content"> 
-  Add mesages to the chatbot. User a USER ASSISTANT text format, or paste json.
-    <form class="w-full" hx-post="./messages/" hx-target="#messages" hx-swap="beforeend">
-<textarea aria-label="messages" name="content" class="textarea w-full textarea-bordered h-32">
-ASSISTANT: How are you doing today?
-USER: I am doing well, thank you. How about you?
-</textarea>
-        <button class="btn mt-2">Submit Messages</button>
-    </form>
-  </div>
-</div>
+  <textarea aria-label="messages" name="content" placeholder="Enter your message" class="textarea textarea-sm textarea-bordered w-full"></textarea>
+</form>

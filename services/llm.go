@@ -17,21 +17,35 @@ func (s *Service) GetLLM(id string) (*models.LLM, error) {
 func (s *Service) GetLLMByIds(ids []string) ([]*models.LLM, error) {
 	llms := []*models.LLM{}
 
-    tx := s.Db.Where("id IN ?", ids).Find(&llms)
-    if tx.Error != nil {
-        return nil, tx.Error
-    }
-
-    return llms, nil
-}
-
-func (s *Service) CreateLLM(input models.LLMCreate) (*models.LLM, error) {
-	lLM := &models.LLM{}
-	tx := s.Db.Create(lLM)
+	tx := s.Db.Where("id IN ?", ids).Find(&llms)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
-	return lLM, nil
+
+	return llms, nil
+}
+
+func (s *Service) GetLLMByProvider(providerId string) ([]*models.LLM, error) {
+	llms := []*models.LLM{}
+
+	tx := s.Db.Where("provider_id = ?", providerId).Find(&llms)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return llms, nil
+}
+
+func (s *Service) CreateLLM(input models.LLMCreate) (*models.LLM, error) {
+	llm := &models.LLM{
+		BaseModel: models.BaseModel{ID: input.ID},
+		ProviderID: input.ProviderID,
+	}
+	tx := s.Db.Create(llm)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	return llm, nil
 }
 
 func (s *Service) GetAllLLMs() (*[]models.LLM, error) {

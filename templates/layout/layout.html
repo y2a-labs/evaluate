@@ -7,9 +7,14 @@
         <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css"/>
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="/static/js/htmx.min.js"></script>
+        <script
+            type="module"
+            src="https://cdn.jsdelivr.net/gh/zerodevx/zero-md@2/dist/zero-md.min.js"
+        ></script>
+        <script src="https://unpkg.com/htmx.org/dist/ext/preload.js"></script>
         <!--<script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script> -->
     </head>
-    <body class="h-full overflow-hidden" hx-boost="true">
+    <body class="h-full overflow-hidden" hx-boost="true" hx-ext="preload">
         <div id="app" class="h-full overflow-y-auto"> <!-- hx-ext="sse" sse-connect="/sse" sse-swap="message"> -->
             <div class="drawer lg:drawer-open">
                 <input id="my-drawer-2" type="checkbox" class="drawer-toggle"/>
@@ -19,7 +24,7 @@
                         <label for="my-drawer-2" class="btn btn-sm drawer-button lg:hidden">Open drawer</label>
                     </nav>
                     
-                    <div class="container mx-auto max-w-3xl py-4 px-4">
+                    <div class="container mx-auto max-w-2xl py-4 px-4">
                         {{ template "page" .}}
                     </div>
                 </div>
@@ -32,13 +37,7 @@
                         <!-- Sidebar content here -->
                         
                         <li><a href="./conversations" >Conversations</a></li>
-                        <li><a href="./prompts" >Prompts</a></li>
-                        <li class="pl-4">Tests</li>
-                        <div class="pl-4">
-                            <li><a href="./run">Run</a></li>
-                            <li><a href="./results" >Results</a></li>
-                        </div>
-
+                        <li><a href="./tests" >Tests</a></li>
                     </ul>
                 </div>
             </div>

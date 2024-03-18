@@ -18,13 +18,38 @@ func (s *Service) GetConversation(id string) (*models.Conversation, error) {
 	return conversation, nil
 }
 
-func (s *Service) GetConversationWithMessages(id string) (*models.Conversation, error) {
+func (s *Service) GetConversationWithMessages(id string, selectedVersion int) (*models.Conversation, error) {
 	conversation := &models.Conversation{BaseModel: models.BaseModel{ID: id}}
 	// Specify the condition for Messages preload
-	tx := s.Db.Preload("Messages", "test_message_id IS (?) OR test_message_id IS NULL", "").First(conversation)
+	tx := s.Db.First(conversation)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
+
+	// Select the version
+	if selectedVersion == -1 {
+		conversation.SelectedVersion = conversation.Version
+	} else {
+		conversation.SelectedVersion = selectedVersion
+	}
+
+	// Adjusted raw SQL query to fetch the primary messages based on conversation version
+	sql := `
+WITH RankedMessages AS (
+    SELECT m.*,
+           ROW_NUMBER() OVER(PARTITION BY m.message_index ORDER BY m.conversation_version DESC) as Rank
+    FROM messages m
+    WHERE m.conversation_id = ? AND m.conversation_version <= ? AND test_message_id = ''
+)
+SELECT * FROM RankedMessages WHERE Rank = 1 AND role <> '' ORDER BY message_index ASC;
+`
+
+	messages := []*models.Message{}
+	if err := s.Db.Raw(sql, id, conversation.SelectedVersion).Scan(&messages).Error; err != nil {
+		return nil, err
+	}
+	conversation.Messages = messages
+
 	return conversation, nil
 }
 
@@ -33,8 +58,11 @@ func (s *Service) CreateConversation(input models.ConversationCreate) (*models.C
 		Name:        input.Name,
 		Description: input.Description,
 		AgentID:     input.AgentID,
+		ModelID:     input.LLMID,
 		PromptID:    input.PromptID,
+		Version: 0,
 		IsTest:      input.IsTest,
+		LastMessageIndex: len(input.Messages),
 	}
 
 	if len(input.Messages) > 0 {
@@ -47,6 +75,7 @@ func (s *Service) CreateConversation(input models.ConversationCreate) (*models.C
 				Content:        message.Content,
 				MessageIndex:   i,
 				ConversationID: conversation.ID,
+				ConversationVersion: 0,
 			}
 		}
 
@@ -78,6 +107,16 @@ func (s *Service) UpdateConversation(id string, input models.ConversationUpdate)
 	// Apply the updates to the model
 	conversation.Name = input.Name
 	conversation.Description = input.Description
+	if input.IsTest && !conversation.IsTest {
+		// If the conversation is being marked as a test, generate embeddings for all of the messages.
+		conversation.IsTest = input.IsTest
+		messages := []*models.Message{}
+		tx := s.Db.Where("conversation_id = ?", conversation.ID).Find(&messages)
+		if tx.Error != nil {
+			return nil, tx.Error
+		}
+		go appendMessageEmbeddings(messages, s)
+	}
 	tx = s.Db.Updates(conversation)
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -111,26 +150,25 @@ func appendMessageEmbeddings(messages []*models.Message, s *Service) error {
 	return nil
 }
 
-func (s *Service) AddMessagesToConversation(conversationId string, inputMessages []models.ChatCompletionMessage) ([]*models.Message, error) {
-	// Gets the number of messages in the conversation
-	var messageIndex int64
-	tx := s.Db.Model(&models.Message{}).Where("conversation_id = ?", conversationId).Where("test_message_id = ?", "").Count(&messageIndex)
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
+func (s *Service) AddMessagesToConversation(conversation *models.Conversation, inputMessages []models.ChatCompletionMessage) ([]*models.Message, error) {
+	conversation.Version++
+
 	// Create the messages from the input
 	messages := make([]*models.Message, len(inputMessages))
 	for i, message := range inputMessages {
 		messages[i] = &models.Message{
+			BaseModel: models.BaseModel{ID: uuid.NewString()},
 			Role:           message.Role,
 			Content:        message.Content,
-			MessageIndex:   int(messageIndex),
-			ConversationID: conversationId,
+			MessageIndex:   conversation.LastMessageIndex + 1,
+			ConversationID: conversation.ID,
+			ConversationVersion: conversation.Version,
 		}
-		messageIndex++
+		conversation.LastMessageIndex++
 	}
 	//Adds the new messages to the database
-	tx = s.Db.Create(messages)
+	conversation.Messages = append(conversation.Messages, messages...)
+	tx := s.Db.Save(conversation)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}

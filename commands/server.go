@@ -67,9 +67,11 @@ func logRequest(next http.Handler) http.Handler {
 
 func removeURLTrailingSlash(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
+		fmt.Println(r.URL.Path)
+		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") && r.Header.Get("X-Redirected-From") == "" {
+			w.Header().Set("X-Redirected-From", r.URL.Path)
 			http.Redirect(w, r, strings.TrimRight(r.URL.Path, "/"), http.StatusMovedPermanently)
-			return
+			//return
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -88,7 +90,7 @@ func StartServer() {
 
 	webResources := web.Resources{Service: service}
 	webGroup := fuego.Group(server, "/")
-	fuego.Use(webGroup, addURLPathToContextMiddleware)
+	//fuego.Use(webGroup, addURLPathToContextMiddleware)
 	fuego.Use(webGroup, removeURLTrailingSlash)
 
 	// Serve the static files
@@ -96,6 +98,7 @@ func StartServer() {
 	fuego.Handle(webGroup, "/static/", http.StripPrefix("/static/", staticFiles))
 
 	fuego.GetStd(webGroup, "/sse", sseHandler)
+	webResources.RegisterTestRoutes(webGroup)
 	webResources.RegisterAgentRoutes(webGroup)
 	webResources.RegisterConversationRoutes(webGroup)
 	webResources.RegisterLLMRoutes(webGroup)

@@ -2,7 +2,7 @@
     <td> {{ .Provider }} </td>
     <td>{{ .Model }}</td>
     <td>
-        <form hx-put="./removemodel" hx-target="closest tr">
+        <form hx-put="?removemodel=true" hx-target="closest tr">
             <input type="hidden" name="provider" value="{{ .Provider }}">
             <input type="hidden" name="model" value="{{ .Model }}">
             <button class="btn btn-sm w-20">Remove</button>

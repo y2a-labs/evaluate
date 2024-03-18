@@ -1,0 +1,24 @@
+{{ template "layout.html" . }}
+
+{{ define "page" }}
+        <input type="text" hx-put="/conversations/{{ .test.ID }}"  hx-trigger="keyup changed delay:500ms" placeholder="Name" name="name" value="{{ .test.Name }}" class="input text-3xl w-full px-0 max-w-xs" /><br>
+        <input type="text" hx-put="/conversations/{{ .test.ID }}"  hx-trigger="keyup changed delay:500ms"  placeholder="Description" name="description" value="{{ .test.Description }}" class="input text-slate-500 px-0 w-full mb-8" />
+        <form id="versionForm" action="" method="GET">
+            Version:
+            <select name="version" onchange="this.form.submit()">
+                {{ range .versions }}
+                <option value="{{ . }}" {{if eq . $.test.SelectedVersion}} selected {{end}}>{{ . }}</option>
+                {{ end }}
+            </select>
+        </form>
+        
+        <div class="flex flex-col space-y-4">
+            {{ template "selected-models.partials.html" . }}
+            {{ template "test-form.partials.html" .test }}
+            <div>
+                <h1 class="text-xl pb-2"> Test Conversation</h1>
+                    {{template "messages.partials.html" .test.Messages}}
+                    {{template "add-messages-form.partials.html" .test}}
+            </div>
+        </div>
+{{ end }}

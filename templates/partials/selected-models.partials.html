@@ -1,37 +1,41 @@
 <div class="text-lg">Models</div>
-<div class="overflow-x-auto max-h-32 overflow-y-auto">
-  <table class="table table-sm max-w-full">
+<div class="overflow-x-auto">
+  <table class="table table-xs max-w-full">
     <!-- head -->
     <thead>
       <tr>
         <th>Provider</th>
         <th>Name</th>
+        <th>Score</th>
         <th></th>
       </tr>
     </thead>
     <tbody id="models-list">
-      <form hx-put="./appendmodel" hx-target="#models-list" hx-swap="beforeend" hx-on::after-request="this.reset()">
-        <tr>
-            <td>
-                <select class="select w-sm select-sm" name="provider">
-                  {{ range .llmProviders }}
-                    <option value="{{.}}">{{.}}</option>
-                  {{ end}}
-                </select>
-            </td>
-            <td>
-                <input name="model" class="input px-0 input-sm" type="text" placeholder="openchat/openchat-7b"/>
-            </td>
-            <td>
-                <button class="btn btn-sm w-20">Add</button>
-            </td>
-        </tr>
-      </form>
         {{ range .test.TestModels}}
           {{if .}}
-            {{template "selected-model-row.partials.html" .}}
+            <tr>
+                <td> {{ .Provider }} </td>
+                <td>{{ .Model }}</td>
+                <td>{{ .Score }}%</td>
+                <td>
+                    <form hx-put="/tests/{{ $.test.ID }}/removemodel" hx-target="closest tr">
+                        <input type="hidden" name="provider" value="{{ .Provider }}">
+                        <input type="hidden" name="model" value="{{ .Model }}">
+                        <button class="btn btn-xs w-20">Remove</button>
+                    </form>
+                </td>
+            </tr>
           {{ end }}
         {{ end }}
     </tbody>
   </table>
 </div>
+<form hx-put="/tests/{{ .test.ID }}/appendmodel" hx-target="#models-list" hx-swap="beforeend">
+  <select class="select w-sm select-sm" name="provider" hx-get="/llms" hx-swap="outerHTML" hx-target="#llms" hx-trigger="change">
+    {{ range .llmProviders }}
+      <option value="{{.}}">{{.}}</option>
+    {{ end}}
+  </select>
+  {{ template "llms-select.partials.html" .llms}}
+  <button class="btn btn-sm w-20">Add</button>
+</form>

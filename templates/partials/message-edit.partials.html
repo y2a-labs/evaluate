@@ -1,0 +1,20 @@
+<form hx-put="/messages/{{ .ID }}" hx-swap="outerHTML"  tabindex="0" id="message" class="group focus:outline-none">
+    <select class="select font-bold px-0 w-32" name="role">
+        <option {{ if eq .Role "system" }} selected {{ end }} >system</option>
+        <option {{ if eq .Role "user" }} selected {{ end }} >user</option>
+        <option {{ if eq .Role "assistant" }} selected {{ end }} >assistant</option>
+    </select>
+    <textarea name="content" autofocus rows="6" class="w-full font-sans">{{ .Content }}</textarea>
+    <!-- Buttons appear on hover/focus of the parent div -->
+    <div class="flex space-x-2 pt-2">
+        <button hx-get="/messages/{{ .ID }}" hx-target="closest #message" hx-swap="outerHTML" class="btn hover:bg-slate-100 btn-sm">
+            Cancel
+        </button>
+        <button class="btn hover:bg-slate-100 btn-sm">
+            Update
+        </button>
+        <button hx-delete="/messages/{{ .ID }}" hx-target="closest #message" hx-swap="outerHTML" class="btn hover:bg-slate-100 btn-sm">
+            Delete
+        </button>
+    </div>
+</form>

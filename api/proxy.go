@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,8 +16,11 @@ import (
 )
 
 func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRequest]) (any, error) {
+	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Minute)
+	defer cancel()
 	body, err := c.Body()
-	agentId := c.Req.Header.Get("AGENT-ID")
+	agentId := c.Req.Header.Get("Agent-Id")
+	providerId := c.Req.Header.Get("Provider-Id")
 	fmt.Println(agentId)
 	if err != nil {
 		return nil, err
@@ -26,20 +30,17 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 
 	if body.Stream {
 		startTime := time.Now()
-		stream, conversation, err := rs.Service.ProxyOpenaiStream(c.Context(), body, agentId)
+		stream, conversation, err := rs.Service.ProxyOpenaiStream(ctx, body, agentId, providerId)
 		if err != nil {
 			return nil, err
 		}
+		defer stream.Close()
 		responseBuffer := strings.Builder{}
 		firstTokenLatencyMs := 0
 		for {
 			resp, err := stream.Recv()
 			// If the stream is done, break out of the loop
 			if errors.Is(err, io.EOF) {
-				_, writeErr := c.Res.Write([]byte("data: [DONE]\n\n"))
-				if writeErr != nil {
-					return nil, fmt.Errorf("failed to write response: %w", writeErr)
-				}
 				break
 			}
 			// If the stream is stopped early
@@ -60,8 +61,13 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 				return nil, fmt.Errorf("failed to marshal response to JSON: %w", err)
 			}
 
-			data := "data: " + string(respBytes) + "\n\n"
-			_, writeErr := c.Res.Write([]byte(data))
+			var builder strings.Builder
+
+			builder.WriteString("data: ")
+			builder.Write(respBytes)
+			builder.WriteString("\n\n")
+
+			_, writeErr := c.Res.Write([]byte(builder.String()))
 			if writeErr != nil {
 				return nil, fmt.Errorf("failed to write response: %w", writeErr)
 			}
@@ -92,11 +98,29 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 
 		fmt.Println("resp: ", responseContent)
 	} else {
-		response, _, err := rs.Service.ProxyOpenaiChat(c.Context(), body, agentId)
+		startTime := time.Now()
+		response, conversation, err := rs.Service.ProxyOpenaiChat(c.Context(), body, agentId, providerId)
 		if err != nil {
 			return nil, err
 		}
 		responseContent = response.Choices[0].Message.Content
+		message := &models.Message{
+			BaseModel:      models.BaseModel{ID: uuid.NewString()},
+			Role:           "assistant",
+			Content:        responseContent,
+			ConversationID: conversation.ID,
+			LLMID:          body.Model,
+			MessageIndex:   len(body.Messages),
+			Metadata: &models.MessageMetadata{
+				BaseModel:      models.BaseModel{ID: uuid.NewString()},
+				EndLatencyMs:   int(time.Since(startTime).Milliseconds()),
+			},
+		}
+		conversation.Messages = append(conversation.Messages, message)
+		tx := rs.Service.Db.Save(conversation)
+		if tx.Error != nil {
+			return nil, tx.Error
+		}
 	}
 	fmt.Println(responseContent)
 

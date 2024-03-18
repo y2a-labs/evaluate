@@ -13,7 +13,8 @@ type LLM struct {
 
 type LLMCreate struct {
 	// TODO add ressources
-	ID string `json:"id"`
+	ID         string `json:"id"`
+	ProviderID string `json:"provider_id"`
 }
 
 type LLMUpdate struct {

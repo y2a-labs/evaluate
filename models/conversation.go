@@ -7,13 +7,16 @@ import (
 
 type Conversation struct {
 	BaseModel
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Messages    []*Message
-	ModelID     string
-	PromptID    string `json:"prompt_id"`
-	Prompt      Prompt `json:"prompt"`
-	AgentID     string
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	Messages         []*Message
+	ModelID          string
+	PromptID         string `json:"prompt_id"`
+	Prompt           Prompt `json:"prompt"`
+	AgentID          string
+	LastMessageIndex int
+	Version          int `gorm:"default:0"`
+	SelectedVersion  int `gorm:"-"`
 
 	IsTest     bool
 	TestModels datatypes.JSONSlice[TestModels]
@@ -23,6 +26,7 @@ type Conversation struct {
 type TestModels struct {
 	Provider string
 	Model    string
+	Score    float64
 }
 
 type ChatCompletionMessage struct {
@@ -31,16 +35,18 @@ type ChatCompletionMessage struct {
 }
 
 type ConversationCreate struct {
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	AgentID       string
-	PromptID      string
-	IsTest        bool
-	Messages      []openai.ChatCompletionMessage
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	AgentID     string
+	LLMID       string
+	PromptID    string
+	IsTest      bool
+	Messages    []openai.ChatCompletionMessage
 }
 
 type ConversationUpdate struct {
 	Name        string
+	IsTest      bool `json:"is_test" form:"is_test"`
 	Description string
 	Messages    []openai.ChatCompletionMessage
 }

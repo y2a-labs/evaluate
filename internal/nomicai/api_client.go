@@ -119,7 +119,7 @@ func (c *Client) CosineSimilarity(a, b []float64) (float64, error) {
 	magB = math.Sqrt(magB) // Calculate magnitude of b
 
 	if magA == 0 || magB == 0 {
-		return 0, fmt.Errorf("one or both of the vectors are zero vectors")
+		return 0, nil
 	}
 
 	return dotProduct / (magA * magB), nil // Calculate cosine similarity

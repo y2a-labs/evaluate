@@ -1,33 +1,20 @@
-<div id="messages" class="flex flex-col space-y-4">
+<div id="messages" class="flex flex-col">
     {{ range .}}
-        <div>
-            <div class="font-semibold">
-                {{ .Role}}
-            </div>
-            {{ if eq .Role "assistant"}}
-            <details class="collapse collapse-arrow">
-                <summary class="collapse-title w-full px-0 py-2 m-0">
-                    <div class="pr-6">{{ .Content }}</div>
-                    <div class="pr-4">Average Score: {{ .Score }}%</div>
-                </summary>
-                <div class="collapse-content p-0 flex flex-col space-y-4">
+        {{ template "message.partials.html" .}}
+
+        {{ if and (not .TestMessageID )  (eq .Role "assistant") }}
+            <div class="collapse collapse-arrow">
+                <input type="checkbox" /> 
+                <div class="collapse-title text-md px-0 font-bold">
+                    Show AI Responses
+                </div>
+                <div class="collapse-content"> 
                     {{ range .TestMessages }}
-                    <div> {{ .Content }}
-                            <div class="pt-1 flex space-x-4">
-                                <div class="pr-4">Score: {{ .Score }}%</div>
-                                <div>
-                                    <div class="badge badge-ghost">{{ .LLMID }}blah</div>
-                                </div>
-                            </div>
-                        </div>
+                        {{ template "message.partials.html" .}}
                     {{ end }}
                 </div>
-              </details>
-            {{else}}
-                <div class="py-2 rounded-lg">
-                    {{ .Content}}
-                </div>
-            {{end}}
-        </div>
+            </div>
+        {{ end }}
+
     {{ end}}
 </div>

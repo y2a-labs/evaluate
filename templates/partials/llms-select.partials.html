@@ -1,0 +1,5 @@
+<select id="llms" class="select select-sm" name="model">
+    {{ range .}}
+        <option value="{{ .ID }}">{{ .ID }}</option>
+    {{ end }}
+</select>

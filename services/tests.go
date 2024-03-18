@@ -2,42 +2,37 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"script_validation/internal/nomicai"
 	"script_validation/models"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
+	"gorm.io/gorm"
 )
 
 type RunTestInput struct {
 	Context      context.Context
 	RunCount     int `json:"run_count"`
-	Prompt       *models.Prompt
 	Conversation *models.Conversation
+	TestIndexes  []int
 	LLMs         []*models.LLM
 }
 
 type ExecuteTestInput struct {
 	Context        context.Context
+	TestMessageID  string
 	RunCount       int
-	PromptID       string
 	ConversationID string
 }
 
 func (s *Service) prepareTestData(input ExecuteTestInput) (*RunTestInput, error) {
 	// Get the conversation with messages
-	conversation, err := s.GetConversationWithMessages(input.ConversationID)
-	if err != nil {
-		return nil, err
-	}
-
-	prompt, err := s.GetPrompt(input.PromptID)
+	conversation, err := s.GetConversationWithMessages(input.ConversationID, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -52,18 +47,23 @@ func (s *Service) prepareTestData(input ExecuteTestInput) (*RunTestInput, error)
 		return nil, err
 	}
 
+	testIndexes, err := getTestIndexes(conversation.Messages, input.TestMessageID)
+	if err != nil {
+		return nil, err
+	}
+
 	result := &RunTestInput{
 		Context:      input.Context,
 		Conversation: conversation,
-		Prompt:       prompt,
 		LLMs:         llms,
 		RunCount:     input.RunCount,
+		TestIndexes:  testIndexes,
 	}
 	return result, nil
 }
 
 func (s *Service) ExecuteTestWorkflow(input ExecuteTestInput) ([]*models.Message, error) {
-	if input.ConversationID == "" || input.PromptID == "" || input.RunCount < 1 {
+	if input.ConversationID == "" || input.RunCount < 1 {
 		return nil, fmt.Errorf("error trying to validate workflow input")
 	}
 	// Get all of the data
@@ -140,27 +140,23 @@ type ModelTestResultsOverview struct {
 	TotalResponseTimeMs int
 }
 
-func (s *Service) GetTestResults(conversationID, promptID string) (*models.Conversation, error) {
-	// Assuming conversation struct is properly defined and includes Messages that can have Metadata and TestMessages.
-	conversation := &models.Conversation{BaseModel: models.BaseModel{ID: conversationID}}
+func (s *Service) GetTest(conversationID string, selectedVersion int) (*models.Conversation, error) {
 
-	// Loads the conversation
-	tx := s.Db.First(conversation)
-
-	if tx.Error != nil {
-		return nil, tx.Error
+	conversation, err := s.GetConversationWithMessages(conversationID, selectedVersion)
+	if err != nil {
+		return nil, err
 	}
 
-	// Loads the messages without a test_message_id, then preload all test messages and their metadata
-	tx = s.Db.Model(&models.Message{}).
-		Preload("Metadata").
-		Preload("TestMessages.Metadata").
-		Where("test_message_id = ?", "").
-		Order("message_index").
-		Find(&conversation.Messages)
-
-	if tx.Error != nil {
-		return nil, tx.Error
+	// For each message, preload Metadata and TestMessages (and their Metadata).
+	for i, message := range conversation.Messages {
+		if err := s.Db.Preload("Metadata").
+			Preload("TestMessages", func(db *gorm.DB) *gorm.DB {
+				return db.Where("conversation_version = ?", conversation.SelectedVersion).Preload("Metadata")
+			}).
+			Find(&message).Error; err != nil {
+			return nil, err
+		}
+		conversation.Messages[i] = message
 	}
 
 	for _, message := range conversation.Messages {
@@ -168,55 +164,64 @@ func (s *Service) GetTestResults(conversationID, promptID string) (*models.Conve
 		if message.Role != "assistant" {
 			continue
 		}
+
+		if message.Metadata == nil {
+			return nil, fmt.Errorf("no metadata found for message")
+		}
+
 		// Calculate the score for every TestMessage
-		scoreSum := 0.0
+		uniqueTestMessages := make(map[string]*models.Message)
 		for _, testMessage := range message.TestMessages {
-			// should be fixed
-			score, err := s.embeddingProviders["nomicai"].client.CosineSimilarity(testMessage.Metadata.Embedding, message.Metadata.Embedding)
+			// Calculate the score
+			embeddingProvider, ok := s.embeddingProviders["nomicai"]
+			if !ok {
+				return nil, fmt.Errorf("embedding provider not found")
+			}
+
+			// Make sure both messages have embeddings
+			if testMessage.Metadata == nil || message.Metadata == nil {
+				return nil, fmt.Errorf("missing metadata on message")
+			}
+
+			score, err := embeddingProvider.client.CosineSimilarity(testMessage.Metadata.Embedding, message.Metadata.Embedding)
 			if err != nil {
 				return nil, fmt.Errorf("failed to calculate cosine similarity: %w", err)
 			}
 			scoreStr := fmt.Sprintf("%.2f", score*100)
 			testMessage.Score, _ = strconv.ParseFloat(scoreStr, 64)
-			scoreSum += testMessage.Score
+
+			// If the test message content is not already in the map, add it
+			if _, exists := uniqueTestMessages[testMessage.Content]; !exists {
+				uniqueTestMessages[testMessage.Content] = testMessage
+			}
 		}
-		// Calculate the average score for the message
-		message.Score = scoreSum / float64(len(message.TestMessages))
-		scoreStr := fmt.Sprintf("%.2f", message.Score)
-		message.Score, _ = strconv.ParseFloat(scoreStr, 64)
+
+		// Replace the original TestMessages slice with the unique ones
+		message.TestMessages = make([]*models.Message, 0, len(uniqueTestMessages))
+		for _, testMessage := range uniqueTestMessages {
+			message.TestMessages = append(message.TestMessages, testMessage)
+		}
+
+		// Sort TestMessages by score in descending order
+		sort.Slice(message.TestMessages, func(i, j int) bool {
+			return message.TestMessages[i].Score > message.TestMessages[j].Score
+		})
 	}
-
-	if promptID == "" {
-		promptID = conversation.PromptID
-	}
-
-	prompt := &models.Prompt{BaseModel: models.BaseModel{ID: promptID}}
-
-	conversation.Prompt = *prompt
 
 	return conversation, nil
 }
 
 func (s *Service) runTest(input *RunTestInput) (chan TestResult, int, error) {
 
-	// Set the prompt as the first message in the conversation
-	input.Conversation.Messages = append([]*models.Message{{Role: "system", Content: input.Prompt.Content}}, input.Conversation.Messages...)
-
-	// Gets the list of end indexes to test on
-	testIndexes, err := getTestIndexes(input.Conversation.Messages)
-	if err != nil {
-		return nil, 0, err
-	}
-
 	var wg sync.WaitGroup
-	testCount := len(testIndexes) * input.RunCount * len(input.LLMs)
+	testCount := len(input.TestIndexes) * input.RunCount * len(input.LLMs)
 	testResultChan := make(chan TestResult, testCount)
 
 	for _, llm := range input.LLMs {
 		embeddingProvider := s.embeddingProviders["nomicai"]
 		llmProvider := s.llmProviders[llm.ProviderID]
 		limiter := s.limiter.GetLimiter(llmProvider.Provider)
-		for _, testIndex := range testIndexes {
+		for _, testIndex := range input.TestIndexes {
 			wg.Add(input.RunCount)
 			messages := input.Conversation.Messages[:testIndex]
 			for range input.RunCount {
@@ -231,12 +236,14 @@ func (s *Service) runTest(input *RunTestInput) (chan TestResult, int, error) {
 					// Process the prompt
 					resultMessage, err := processPrompt(input.Context, messages, llm.ID, llmProvider.client, embeddingProvider.client)
 					if err != nil {
-						testResultChan <- TestResult{Err: fmt.Errorf("problem processing the prompt: %w", err)}
+						testResultChan <- TestResult{Err: err}
 						return
 					}
-					resultMessage.PromptID = input.Prompt.ID
 					resultMessage.TestMessageID = input.Conversation.Messages[testIndex].ID
 					resultMessage.ConversationID = input.Conversation.ID
+					resultMessage.LLMID = llm.ID
+					resultMessage.ConversationVersion = input.Conversation.SelectedVersion
+					resultMessage.MessageIndex = input.Conversation.Messages[testIndex].MessageIndex
 
 					testResultChan <- TestResult{
 						Message: resultMessage,
@@ -271,48 +278,28 @@ func processPrompt(ctx context.Context, messages []*models.Message, model string
 	// Turn the message into a chat completion request
 	request := openai.ChatCompletionRequest{
 		Model:    model,
-		Stream:   true,
 		Messages: openaiMessages,
+		Stream:   false,
 	}
 
 	// Measure how long it takes for the first token
 	startTime := time.Now()
 	// Create the chat completion stream
-	stream, err := llmClient.CreateChatCompletionStream(ctx, request)
+	resp, err := llmClient.CreateChatCompletion(ctx, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get LLM response: %w", err)
 	}
-	defer stream.Close()
-	firstTokenLatencyMs := 0
-	chunkCount := 0
-	responseBuffer := ""
-
-	// Reads back the streamed response
-	for {
-		resp, err := stream.Recv()
-
-		// If the stream is done, break out of the loop
-		if errors.Is(err, io.EOF) {
-			break
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to get LLM response: %w", err)
-		}
-		chunkCount++
-		responseBuffer += resp.Choices[0].Delta.Content
-
-		if firstTokenLatencyMs == 0 {
-			firstTokenLatencyMs = int(time.Since(startTime).Milliseconds())
-		}
+	if len(resp.Choices) == 0 {
+		return &models.Message{
+			Role:    "assistant",
+			Content: "",
+		}, nil
 	}
 
-	if responseBuffer == "" {
-		return nil, fmt.Errorf("no content in generated response")
-	}
+	content := resp.Choices[0].Message.Content
 
 	// Generate text embeddings
-	responseEmbedding, err := embeddingClient.EmbedText([]string{responseBuffer}, nomicai.Clustering)
+	responseEmbedding, err := embeddingClient.EmbedText([]string{content}, nomicai.Clustering)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get text embedding: %w", err)
 	}
@@ -321,14 +308,14 @@ func processPrompt(ctx context.Context, messages []*models.Message, model string
 
 	message := &models.Message{
 		Role:    "assistant",
-		Content: responseBuffer,
+		Content: content,
 		Metadata: &models.MessageMetadata{
 			BaseModel: models.BaseModel{
 				ID: uuid.NewString(),
 			},
-			StartLatencyMs:   firstTokenLatencyMs,
 			EndLatencyMs:     totalLatencyMs,
-			OutputTokenCount: chunkCount,
+			OutputTokenCount: resp.Usage.CompletionTokens,
+			InputTokenCount:  resp.Usage.PromptTokens,
 			Embedding:        responseEmbedding.Embeddings[0],
 		},
 	}
@@ -336,19 +323,27 @@ func processPrompt(ctx context.Context, messages []*models.Message, model string
 	return message, nil
 }
 
-func getTestIndexes(messages []*models.Message) ([]int, error) {
+func getTestIndexes(messages []*models.Message, testMessageID string) ([]int, error) {
 	evalIndexes := []int{}
+
+	// If there is a single message to test
+	if testMessageID != "" {
+		for i, message := range messages {
+			if message.ID == testMessageID {
+				evalIndexes = append(evalIndexes, i)
+				return evalIndexes, nil
+			}
+		}
+		// if the ID can't be found
+		return []int{}, fmt.Errorf("test message ID not found")
+	}
+
 	// Gets the list of all of the messages to run eval on
 	for i, message := range messages {
 		if message.Role != "assistant" || i == 0 {
 			continue
 		}
-		previousIsUser := messages[i-1].Role == "user"
-
-		// Run Eval on all assistant messages
-		if previousIsUser {
-			evalIndexes = append(evalIndexes, i)
-		}
+		evalIndexes = append(evalIndexes, i)
 	}
 	// Error if no messages found to evaluate
 	if len(evalIndexes) == 0 {
