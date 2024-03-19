@@ -11,7 +11,7 @@ type MessageMetadata struct {
 	EndLatencyMs     int
 	OutputTokenCount int
 	InputTokenCount  int
-	Embedding        datatypes.JSONSlice[float64]
+	Embedding        datatypes.JSONSlice[float32]
 }
 
 type MessageMetadataCreate struct {

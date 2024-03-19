@@ -100,7 +100,7 @@ func (c *Client) EmbedText(texts []string, taskType TaskType) (*EmbedTextRespons
 	return embeddingResponse, nil
 }
 
-func (c *Client) CosineSimilarity(a, b []float64) (float64, error) {
+func (c *Client) CosineSimilarity(a, b []float32) (float64, error) {
 	if len(a) != len(b) {
 		return 0, fmt.Errorf("slices must be of the same length")
 	}
@@ -110,9 +110,11 @@ func (c *Client) CosineSimilarity(a, b []float64) (float64, error) {
 	magB := 0.0
 
 	for i := range a {
-		dotProduct += a[i] * b[i] // Calculate dot product
-		magA += a[i] * a[i]       // Sum for magnitude of a
-		magB += b[i] * b[i]       // Sum for magnitude of b
+		af64 := float64(a[i])
+		bf64 := float64(b[i])
+		dotProduct += af64 * bf64 // Calculate dot product
+		magA += af64 * af64       // Sum for magnitude of a
+		magB += bf64 * bf64      // Sum for magnitude of b
 	}
 
 	magA = math.Sqrt(magA) // Calculate magnitude of a
@@ -123,19 +125,4 @@ func (c *Client) CosineSimilarity(a, b []float64) (float64, error) {
 	}
 
 	return dotProduct / (magA * magB), nil // Calculate cosine similarity
-}
-
-func (c *Client) GetTextSimilarity(text1 string, text2 string) (float64, error) {
-	embeddings, err := c.EmbedText(
-		[]string{text1, text2},
-		Clustering,
-	)
-	if err != nil {
-		return 0, err
-	}
-	similarity, err := c.CosineSimilarity(embeddings.Embeddings[0], embeddings.Embeddings[1])
-	if err != nil {
-		return 0, err
-	}
-	return similarity, nil
 }

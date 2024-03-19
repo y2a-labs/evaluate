@@ -100,7 +100,8 @@ func StartServer(port string, dev bool) {
 	apiResources := api.Resources{Service: service}
 
 	// Create a proxy server
-	fuego.Post(server, "/v1/chat/completions", apiResources.ProxyOpenai)
+	fuego.Post(server, "/v1/chat/completions", apiResources.ProxyOpenaiChatCompletion)
+	fuego.Post(server, "/v1/embeddings", apiResources.ProxyOpenaiEmbedding)
 
 	apiGroup := fuego.Group(server, "/v1/api")
 	apiResources.RegisterConversationRoutes(apiGroup)

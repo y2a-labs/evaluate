@@ -1,6 +1,7 @@
 <tr>
     <td> {{ .Provider }} </td>
     <td>{{ .Model }}</td>
+    <td>{{ .Score }}%</td>
     <td>
         <form hx-put="?removemodel=true" hx-target="closest tr">
             <input type="hidden" name="provider" value="{{ .Provider }}">

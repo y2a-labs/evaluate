@@ -11,18 +11,35 @@
             type="module"
             src="https://cdn.jsdelivr.net/gh/zerodevx/zero-md@2/dist/zero-md.min.js"
         ></script>
+        <style>
+        .my-indicator{
+            display:none;
+        }
+        .htmx-request .my-indicator{
+            display:inline;
+        }
+        .htmx-request.my-indicator{
+            display:inline;
+        }
+        </style>
     </head>
     <body class="h-full overflow-hidden" hx-boost="true">
         <div id="app" class="h-full overflow-y-auto"> <!-- hx-ext="sse" sse-connect="/sse" sse-swap="message"> -->
             <div class="drawer lg:drawer-open">
                 <input id="my-drawer-2" type="checkbox" class="drawer-toggle"/>
                 <div class="drawer-content">
+                    <div id="toasts" class="toast toast-end toast-bottom mr-2 z-10">
+                        <div id="spinner" class="alert alert-info htmx-indicator my-indicator">
+                            <span>Running Test</span>
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </div>
                     <!-- Page content here -->
                     <nav class="h-16 px-8 py-4">
                         <label for="my-drawer-2" class="btn btn-sm drawer-button lg:hidden">Open drawer</label>
                     </nav>
-                    
-                    <div class="container mx-auto max-w-2xl py-4 px-4">
+
+                    <div class="container mx-auto max-w-3xl py-4 px-4">
                         {{ template "page" .}}
                     </div>
                 </div>

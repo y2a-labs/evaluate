@@ -4,7 +4,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"script_validation/internal/nomicai"
 	"script_validation/models"
 
 	"github.com/sashabaranov/go-openai"
@@ -39,35 +38,21 @@ func (s *Service) CreateProvider(input models.ProviderCreate) (*models.Provider,
 		Requests:        input.Requests,
 		Interval:        input.Interval,
 		Unit:            input.Unit,
+		ValidKey:        false,
 	}
 
 	// Initialize the provider
-	if provider.Type == "llm" {
-		client := openai.NewClient(input.ApiKey, provider.BaseUrl)
+	client := openai.NewClient(input.ApiKey, provider.BaseUrl)
 
-		// Check to see if it works
-		_, err := client.ListModels(context.Background())
-		if err != nil {
-			return nil, fmt.Errorf("was not able to connect to the Please verify your baseURL and API Key")
-		}
-		// sk-slpllry-hd4eewa-wfm4hhq-fsdshbi
-
-		s.llmProviders[provider.ID] = &llmProvider{
-			Provider: provider,
-			client:   client,
-		}
+	s.llmProviders[provider.ID] = &llmProvider{
+		Provider: provider,
+		client:   client,
 	}
-	// Initialize the provider
-	if provider.Type == "embedding" {
-		client, err := nomicai.NewClient(input.ApiKey, provider.BaseUrl)
-		if err != nil {
-			return nil, err
-		}
 
-		s.embeddingProviders[provider.ID] = &embeddingProvider{
-			Provider: provider,
-			client:   client,
-		}
+	// Load any models that are compatible with the provider
+	_, err = s.PullLLMsFromProvider(provider.ID)
+	if err == nil {
+		provider.ValidKey = true
 	}
 
 	tx := s.Db.Create(provider)
@@ -96,9 +81,8 @@ func (s *Service) UpdateProvider(id string, input models.ProviderUpdate) (*model
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
-
 	// Apply the updates to the model
-	if input.ApiKey != "" || input.ApiKey != ".................." {
+	if input.ApiKey != "" {
 		// Create the encryption key
 		aesKey, err := loadOrCreateAESKey(".env")
 		if err != nil {
@@ -109,6 +93,11 @@ func (s *Service) UpdateProvider(id string, input models.ProviderUpdate) (*model
 			return nil, err
 		}
 		provider.EncryptedAPIKey = encryptedApiKey
+		// Make the update to the client
+		s.llmProviders[provider.ID] = &llmProvider{
+			Provider: provider,
+			client:   openai.NewClient(input.ApiKey, provider.BaseUrl),
+		}
 	}
 
 	if input.BaseUrl != "" {
@@ -131,10 +120,21 @@ func (s *Service) UpdateProvider(id string, input models.ProviderUpdate) (*model
 		provider.Unit = input.Unit
 	}
 
+	// Test the provider by tyring to list the models
+	_, err := s.llmProviders[provider.ID].client.ListModels(context.Background())
+	if err != nil {
+		provider.ValidKey = false
+		fmt.Println("Error: ", err)
+	} else {
+		provider.ValidKey = true
+
+	}
+
 	tx = s.Db.Save(provider)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
+
 	return provider, nil
 }
 

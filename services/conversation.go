@@ -2,11 +2,12 @@
 package service
 
 import (
+	"context"
 	"fmt"
-	"script_validation/internal/nomicai"
 	"script_validation/models"
 
 	"github.com/google/uuid"
+	"github.com/sashabaranov/go-openai"
 )
 
 func (s *Service) GetConversation(id string) (*models.Conversation, error) {
@@ -55,11 +56,11 @@ SELECT * FROM RankedMessages WHERE Rank = 1 AND role <> '' ORDER BY message_inde
 
 func (s *Service) CreateConversation(input models.ConversationCreate) (*models.Conversation, error) {
 	conversation := &models.Conversation{
-		Name:        input.Name,
-		Description: input.Description,
-		ModelID:     input.LLMID,
-		Version: 0,
-		IsTest:      input.IsTest,
+		Name:             input.Name,
+		Description:      input.Description,
+		ModelID:          input.LLMID,
+		Version:          0,
+		IsTest:           input.IsTest,
 		LastMessageIndex: len(input.Messages),
 	}
 
@@ -68,11 +69,11 @@ func (s *Service) CreateConversation(input models.ConversationCreate) (*models.C
 		messages := make([]*models.Message, len(input.Messages))
 		for i, message := range input.Messages {
 			messages[i] = &models.Message{
-				BaseModel:      models.BaseModel{ID: uuid.NewString()},
-				Role:           message.Role,
-				Content:        message.Content,
-				MessageIndex:   i,
-				ConversationID: conversation.ID,
+				BaseModel:           models.BaseModel{ID: uuid.NewString()},
+				Role:                message.Role,
+				Content:             message.Content,
+				MessageIndex:        i,
+				ConversationID:      conversation.ID,
 				ConversationVersion: 0,
 			}
 		}
@@ -128,16 +129,19 @@ func appendMessageEmbeddings(messages []*models.Message, s *Service) error {
 		texts[i] = message.Content
 	}
 	// add the text embeddings
-	embeddings, err := s.embeddingProviders["nomicai"].client.EmbedText(texts, nomicai.Clustering)
+	embeddings, err := s.llmProviders["openai"].client.CreateEmbeddings(context.Background(), openai.EmbeddingRequestStrings{
+		Model: "text-embedding-3-small",
+		Input: texts,
+	})
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	// add the embeddings to the messages
 	messageMetadata := make([]*models.MessageMetadata, len(messages))
 	for i, message := range messages {
 		messageMetadata[i] = &models.MessageMetadata{
 			MessageID: message.ID,
-			Embedding: embeddings.Embeddings[i],
+			Embedding: embeddings.Data[0].Embedding,
 		}
 	}
 	// Update the messages in the database
@@ -155,11 +159,11 @@ func (s *Service) AddMessagesToConversation(conversation *models.Conversation, i
 	messages := make([]*models.Message, len(inputMessages))
 	for i, message := range inputMessages {
 		messages[i] = &models.Message{
-			BaseModel: models.BaseModel{ID: uuid.NewString()},
-			Role:           message.Role,
-			Content:        message.Content,
-			MessageIndex:   conversation.LastMessageIndex + 1,
-			ConversationID: conversation.ID,
+			BaseModel:           models.BaseModel{ID: uuid.NewString()},
+			Role:                message.Role,
+			Content:             message.Content,
+			MessageIndex:        conversation.LastMessageIndex + 1,
+			ConversationID:      conversation.ID,
 			ConversationVersion: conversation.Version,
 		}
 		conversation.LastMessageIndex++

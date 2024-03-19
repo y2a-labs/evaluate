@@ -49,7 +49,7 @@ func TestRunTest(t *testing.T) {
 	}
 
 	llms := []*models.LLM{
-		&models.LLM{
+		{
 			BaseModel: models.BaseModel{
 				ID: "openchat/openchat-7b",
 			},

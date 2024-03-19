@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"script_validation/internal/nomicai"
 	"script_validation/models"
 	"sort"
 	"strconv"
@@ -181,18 +180,13 @@ func (s *Service) GetTest(conversationID string, selectedVersion int) (*models.C
 		// Calculate the score for every TestMessage
 		uniqueTestMessages := make(map[string]*models.Message)
 		for _, testMessage := range message.TestMessages {
-			// Calculate the score
-			embeddingProvider, ok := s.embeddingProviders["nomicai"]
-			if !ok {
-				return nil, fmt.Errorf("embedding provider not found")
-			}
 
 			// Make sure both messages have embeddings
 			if testMessage.Metadata == nil || message.Metadata == nil {
 				return nil, fmt.Errorf("missing metadata on message")
 			}
 
-			score, err := embeddingProvider.client.CosineSimilarity(testMessage.Metadata.Embedding, message.Metadata.Embedding)
+			score, err := s.CosineSimilarity(testMessage.Metadata.Embedding, message.Metadata.Embedding)
 			if err != nil {
 				return nil, fmt.Errorf("failed to calculate cosine similarity: %w", err)
 			}
@@ -227,7 +221,6 @@ func (s *Service) runTest(input *RunTestInput) (chan TestResult, int, error) {
 	testResultChan := make(chan TestResult, testCount)
 
 	for _, llm := range input.LLMs {
-		embeddingProvider := s.embeddingProviders["nomicai"]
 		llmProvider := s.llmProviders[llm.ProviderID]
 		limiter := s.limiter.GetLimiter(llmProvider.Provider)
 		for _, testIndex := range input.TestIndexes {
@@ -243,7 +236,7 @@ func (s *Service) runTest(input *RunTestInput) (chan TestResult, int, error) {
 					}
 
 					// Process the prompt
-					resultMessage, err := processPrompt(input.Context, messages, llm.ID, llmProvider.client, embeddingProvider.client)
+					resultMessage, err := processPrompt(input.Context, messages, llm.ID, llmProvider.client, s.llmProviders["openai"].client)
 					if err != nil {
 						testResultChan <- TestResult{Err: err}
 						return
@@ -272,7 +265,7 @@ func (s *Service) runTest(input *RunTestInput) (chan TestResult, int, error) {
 	return testResultChan, testCount, nil
 }
 
-func processPrompt(ctx context.Context, messages []*models.Message, model string, llmClient *openai.Client, embeddingClient *nomicai.Client) (*models.Message, error) {
+func processPrompt(ctx context.Context, messages []*models.Message, model string, llmClient *openai.Client, embeddingClient *openai.Client) (*models.Message, error) {
 
 	// Turn the message into openai format
 	openaiMessages := make([]openai.ChatCompletionMessage, len(messages))
@@ -307,8 +300,11 @@ func processPrompt(ctx context.Context, messages []*models.Message, model string
 
 	content := resp.Choices[0].Message.Content
 
-	// Generate text embeddings
-	responseEmbedding, err := embeddingClient.EmbedText([]string{content}, nomicai.Clustering)
+	// Generate text embeddings using openai
+	responseEmbedding, err := embeddingClient.CreateEmbeddings(ctx, openai.EmbeddingRequestStrings{
+		Model: "text-embedding-3-small",
+		Input: []string{content},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get text embedding: %w", err)
 	}
@@ -325,7 +321,7 @@ func processPrompt(ctx context.Context, messages []*models.Message, model string
 			EndLatencyMs:     totalLatencyMs,
 			OutputTokenCount: resp.Usage.CompletionTokens,
 			InputTokenCount:  resp.Usage.PromptTokens,
-			Embedding:        responseEmbedding.Embeddings[0],
+			Embedding:        responseEmbedding.Data[0].Embedding,
 		},
 	}
 

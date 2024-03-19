@@ -32,7 +32,7 @@ func (rs Resources) getConversationList(c fuego.ContextNoBody) (fuego.HTML, erro
 	if err != nil {
 		return "", err
 	}
-	for i, _ := range conversations {
+	for i := range conversations {
 		conversations[i].CreatedAtString = conversations[i].CreatedAt.Format("January 2 03:04 PM")
 	}
 	return c.Render("pages/conversations.page.html", conversations)

@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"script_validation/internal/limiter"
-	"script_validation/internal/nomicai"
 	"script_validation/models"
 	"time"
 
@@ -18,24 +17,17 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 type Service struct {
-	Db                 *gorm.DB
-	limiter            *limiter.RateLimiterManager
-	llmProviders       map[string]*llmProvider
-	embeddingProviders map[string]*embeddingProvider
+	Db           *gorm.DB
+	limiter      *limiter.RateLimiterManager
+	llmProviders map[string]*llmProvider
 }
 
 type llmProvider struct {
 	*models.Provider
 	client *openai.Client
-}
-
-type embeddingProvider struct {
-	*models.Provider
-	client *nomicai.Client
 }
 
 func (s *Service) GetLLMProviderNames() []string {
@@ -58,25 +50,21 @@ func New(dbPath, envPath string) *Service {
 	rateLimiter := limiter.NewRateLimiterManager()
 
 	llmProviders := getOpenaiComatibleProviders(db, aesKey)
-	embeddingProviders := getNomicaiCompatibleProviders(db, aesKey)
 
-	setRateLimits(llmProviders, embeddingProviders, rateLimiter)
+	setRateLimits(llmProviders, rateLimiter)
 
 	return &Service{
-		Db:                 db,
-		limiter:            rateLimiter,
-		llmProviders:       llmProviders,
-		embeddingProviders: embeddingProviders,
+		Db:           db,
+		limiter:      rateLimiter,
+		llmProviders: llmProviders,
 	}
 }
 
-func setRateLimits(llmProviders map[string]*llmProvider, embeddingProviders map[string]*embeddingProvider, rateLimiter *limiter.RateLimiterManager) {
+func setRateLimits(llmProviders map[string]*llmProvider, rateLimiter *limiter.RateLimiterManager) {
 	for _, provider := range llmProviders {
 		rateLimiter.GetLimiter(provider.Provider)
 	}
-	for _, provider := range embeddingProviders {
-		rateLimiter.GetLimiter(provider.Provider)
-	}
+	return
 }
 
 func getOpenaiComatibleProviders(db *gorm.DB, aesKey string) map[string]*llmProvider {
@@ -106,52 +94,11 @@ func getOpenaiComatibleProviders(db *gorm.DB, aesKey string) map[string]*llmProv
 	return llmProviders
 }
 
-func getNomicaiCompatibleProviders(db *gorm.DB, aesKey string) map[string]*embeddingProvider {
-	embeddingProviders := make(map[string]*embeddingProvider)
-
-	// Get the list of providers
-	providers := []models.Provider{}
-	tx := db.Where("type = ?", "embedding").Find(&providers)
-	if tx.Error != nil {
-		log.Printf("error getting embedding providers: %v", tx.Error)
-	}
-
-	for _, provider := range providers {
-		// Get the client
-		decryptedKey, err := decrypt(provider.EncryptedAPIKey, aesKey)
-		if err != nil {
-			log.Printf("error decrypting api key for provider %s: %v", provider.ID, err)
-			continue
-		}
-		client, err := nomicai.NewClient(decryptedKey)
-		if err != nil {
-			log.Printf("error creating client for provider %s: %v", provider.ID, err)
-			continue
-		}
-
-		embeddingProviders[provider.ID] = &embeddingProvider{
-			Provider: &provider,
-			client:   client,
-		}
-	}
-	return embeddingProviders
-}
-
 func connectDB(db_name string) *gorm.DB {
-	newLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
-		logger.Config{
-			SlowThreshold:             time.Second,   // Slow SQL threshold
-			LogLevel:                  logger.Silent, // Log level
-			IgnoreRecordNotFoundError: false,         // Ignore ErrRecordNotFound error for logger
-			Colorful:                  true,          // Disable color
-		},
-	)
 	db, err := gorm.Open(sqlite.Open(db_name), &gorm.Config{
 		NowFunc: func() time.Time {
 			return time.Now() // Use local timezone
 		},
-		Logger: newLogger,
 	})
 
 	if err != nil {
@@ -165,9 +112,51 @@ func connectDB(db_name string) *gorm.DB {
 		&models.MessageMetadata{},
 		&models.Provider{},
 	)
-	// Remove this line to use the default (local) timezone
-	// db.Set("gorm:time_zone", "UTC")
+
+	// Creates the inital list of providers on the first run
+	var count int64
+	db.Model(&models.Provider{}).Count(&count)
+	if count == 0 {
+		// Seed the database
+		seedDB(db)
+	}
+
 	return db
+}
+
+func seedDB(db *gorm.DB) error {
+	providers := []models.Provider{
+		{
+			BaseModel: models.BaseModel{ID: "openai"},
+			Type:      "llm",
+			BaseUrl:   "https://api.openai.com/v1",
+			Requests: 10,
+			Interval: 1,
+			Unit: "seconds",
+		},
+		{
+			BaseModel: models.BaseModel{ID: "openrouter"},
+			Type:      "llm",
+			BaseUrl:   "https://openrouter.ai/api/v1",
+			Requests: 250,
+			Interval: 10,
+			Unit: "seconds",
+		},
+		{
+			BaseModel: models.BaseModel{ID: "local"},
+			Type:      "llm",
+			BaseUrl:   "http://localhost:8080/v1",
+			Requests: 250,
+			Interval: 10,
+			Unit: "seconds",
+		},
+	}
+
+	tx := db.Create(&providers)
+	if tx.Error != nil {
+		panic("failed to seed database")
+	}
+	return nil
 }
 
 // generateRandomBytes generates a random byte slice of n bytes.
@@ -193,7 +182,16 @@ func loadOrCreateAESKey(envPath string) (string, error) {
 	// Load environment variables from .env file
 	err := godotenv.Load(envPath)
 	if err != nil {
-		return "", fmt.Errorf("error loading .env file")
+		// If the .env file doesn't exist, create it
+		if os.IsNotExist(err) {
+			file, err := os.Create(envPath)
+			if err != nil {
+				return "", fmt.Errorf("error creating .env file: %v", err)
+			}
+			file.Close()
+		} else {
+			return "", fmt.Errorf("error loading .env file: %v", err)
+		}
 	}
 
 	aesKey := os.Getenv("AES_KEY")

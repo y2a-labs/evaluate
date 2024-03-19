@@ -53,7 +53,9 @@ func (rs Resources) runTest(c *fuego.ContextWithBody[RunTestInput]) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	return c.Redirect(303, "/tests/"+conversationID)
+	url := c.Req.URL
+	c.Res.Header().Set("HX-Redirect", url.String())
+	return nil, err
 }
 
 type AddMessages struct {

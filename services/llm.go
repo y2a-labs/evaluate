@@ -78,7 +78,7 @@ func (s *Service) PullLLMsFromProvider(providerId string) ([]*models.LLM, error)
 	// Get the list of models from the provider
 	list, err := s.llmProviders[providerId].client.ListModels(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("no models found for provider: %s", providerId)
 	}
 
 	// Turn it into a list of models.llm

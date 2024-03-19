@@ -15,7 +15,15 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRequest]) (any, error) {
+func (rs Resources) ProxyOpenaiEmbedding (c *fuego.ContextWithBody[openai.EmbeddingRequest]) (*openai.EmbeddingResponse, error) {
+	body, err := c.Body()
+	if err != nil {
+		return nil, err
+	}
+	return rs.Service.ProxyOpenaiEmbedding(c.Context(), body)
+}
+
+func (rs Resources) ProxyOpenaiChatCompletion(c *fuego.ContextWithBody[openai.ChatCompletionRequest]) (any, error) {
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Minute)
 	defer cancel()
 	body, err := c.Body()

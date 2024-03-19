@@ -24,7 +24,7 @@ func (rs Resources) getAllProviders(c fuego.ContextNoBody) (fuego.HTML, error) {
 	if err != nil {
 		return "", err
 	}
-	for i, _ := range providers {
+	for i := range providers {
 		llms, err := rs.Service.GetLLMByProvider(providers[i].ID)
 		if err != nil {
 			return "", err

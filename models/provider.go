@@ -5,8 +5,9 @@ type Provider struct {
 	BaseUrl         string
 	Type            string
 	EncryptedAPIKey string `json:"-"`
+	ValidKey		bool  
 	Requests        int
-	Models          []*LLM
+	Models          []*LLM `json:"-"`
 	Interval        int
 	Unit            string
 }

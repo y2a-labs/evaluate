@@ -1,19 +1,30 @@
 <div id="provider" class="collapse bg-base-200 collapse-arrow">
     <input type="checkbox" /> 
-    <div class="collapse-title text-lg font-medium">
+    <div class="collapse-title text-lg font-medium flex justify-between">
         {{ .ID }}
+        {{ if eq .EncryptedAPIKey ""}}
+            <div class="badge badge-info mt-2 gap-2">
+            No Key
+            </div>
+        {{ else }}
+            {{ if .ValidKey }}
+                <div class="badge badge-success mt-2 gap-2">
+                Verified
+                </div>
+            {{ else }}
+                <div class="badge badge-warning mt-2 gap-2">
+                Unverified
+                </div>
+            {{ end }}
+        {{ end}}
+
     </div>
     <div class="collapse-content">
+            {{ if not .ValidKey }}
+                <div class="text-sm">Was not able to validate endpoint at GET {{.BaseUrl}}/models. Verify your base url and api key.</div>
+            {{ end}}
         <form hx-put="/providers/{{ .ID }}" hx-swap="outerHTML" hx-target="closest #provider" class="grid md:grid-cols-6 gap-2">
-            <label class="form-control col-span-3">
-                <div class="label">
-                    <span class="label-text">Type:</span>
-                </div>
-                <select name="type" class="select">
-                    <option {{if eq .Type "llm"}} selected {{ end }}>llm</option>
-                    <option {{if eq .Type "embedding"}} selected {{ end }}>embedding</option>
-                </select>
-            </label>
+            <input type="text" name="type" hidden value="llm" />
 
             <label class="form-control col-span-3">
                 <div class="label">
@@ -22,16 +33,14 @@
                 <input type="text" placeholder="openai" name="baseUrl" value="{{ .BaseUrl }}" class="input" />
             </label>
 
-
-
-            <label class="form-control col-span-6">
+            <label class="form-control col-span-3">
                 <div class="label">
                     <span class="label-text">API Key:</span>
                 </div>
-                <input type="password" placeholder="API Key" name="apiKey" value=".................." class="input" />
+                <input type="password" placeholder="API Key" name="apiKey" class="input" />
             </label>
             <div class="col-span-6 pt-2 text-lg">
-                Rate Limiting Settings:
+                Rate Limiting:
             </div>
             <label class="form-control col-span-2">
                 <div class="label">

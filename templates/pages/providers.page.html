@@ -2,7 +2,7 @@
 
 {{ define "page" }}
     <h1 class="text-2xl pb-4">Providers</h1>
-    <div>Add at least 1 LLM Provider API Key and Nomic AI for text embedding</div>
+    <div>Add your openai api key and any additional openai compatible providers.</div>
     <div class="flex flex-col space-y-4" id="providers">
         {{ range . }}
             {{ template "provider.partials.html" .}}
@@ -17,15 +17,7 @@
             <input required type="text" placeholder="openai" name="id" class="input input-bordered" />
         </label>
 
-        <label class="form-control col-span-3">
-            <div class="label">
-                <span class="label-text">Type:</span>
-            </div>
-            <select name="type" class="select select-bordered">
-                <option>llm</option>
-                <option>embedding</option>
-            </select>
-        </label>
+        <input type="text" name="type" hidden value="llm" />
 
         <label class="form-control col-span-3">
             <div class="label">
@@ -36,7 +28,7 @@
 
 
 
-        <label class="form-control col-span-3">
+        <label class="form-control col-span-6">
             <div class="label">
                 <span class="label-text">API Key:</span>
             </div>

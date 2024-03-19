@@ -9,7 +9,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func (s *Service) getLLM(modelName string) (modelID, providerID string, err error) {
+func (s *Service) GetModel(modelName string) (modelID, providerID string, err error) {
 	// Check if the modelName can be split with a "/"
 	parts := strings.SplitN(modelName, "/", 2)
 
@@ -42,7 +42,7 @@ func (s *Service) ProxyOpenaiStream(ctx context.Context, req openai.ChatCompleti
 	var err error
 
 	if providerId == "" {
-		modelId, providerId, err = s.getLLM(req.Model)
+		modelId, providerId, err = s.GetModel(req.Model)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -75,7 +75,7 @@ func (s *Service) ProxyOpenaiChat(ctx context.Context, req openai.ChatCompletion
 	var err error
 
 	if providerId == "" {
-		modelId, providerId, err = s.getLLM(req.Model)
+		modelId, providerId, err = s.GetModel(req.Model)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -99,4 +99,19 @@ func (s *Service) ProxyOpenaiChat(ctx context.Context, req openai.ChatCompletion
 	}
 
 	return &stream, conversation, err
+}
+
+func (s *Service) ProxyOpenaiEmbedding(ctx context.Context, req openai.EmbeddingRequest) (*openai.EmbeddingResponse, error) {
+	modelID, providerId, err := s.GetModel(string(req.Model))
+	if err != nil {
+		return nil, err
+	}
+	req.Model = openai.EmbeddingModel(modelID)
+
+	provider, ok := s.llmProviders[providerId]
+	if !ok {
+		return nil, fmt.Errorf("provider not found")
+	}
+	resp, err := provider.client.CreateEmbeddings(ctx, req)
+	return &resp, err
 }

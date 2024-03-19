@@ -5,9 +5,16 @@ client = OpenAI(
     api_key="any"
 )
 
-response = client.embeddings.create(
-    input="Hello, world",
-    model="text-embedding-3-small"
+response = client.chat.completions.create(
+  model="gpt-3.5-turbo",
+  messages=[
+    {
+      "role": "user",
+      "content": "How are you?"
+    }
+  ],
+  stream=True
 )
 
-print(response)
+for chunk in response:
+    print(chunk)

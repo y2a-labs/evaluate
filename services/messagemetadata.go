@@ -2,6 +2,8 @@
 package service
 
 import (
+	"fmt"
+	"math"
 	"script_validation/models"
 )
 
@@ -61,6 +63,33 @@ func (s *Service) DeleteMessageMetadata(id string) (*models.MessageMetadata, err
 	return nil, nil
 }
 
+func (s *Service) CosineSimilarity(a, b []float32) (float64, error) {
+	if len(a) != len(b) {
+		return 0, fmt.Errorf("slices must be of the same length")
+	}
+
+	dotProduct := 0.0
+	magA := 0.0
+	magB := 0.0
+
+	for i := range a {
+		af64 := float64(a[i])
+		bf64 := float64(b[i])
+		dotProduct += af64 * bf64 // Calculate dot product
+		magA += af64 * af64       // Sum for magnitude of a
+		magB += bf64 * bf64       // Sum for magnitude of b
+	}
+
+	magA = math.Sqrt(magA) // Calculate magnitude of a
+	magB = math.Sqrt(magB) // Calculate magnitude of b
+
+	if magA == 0 || magB == 0 {
+		return 0, nil
+	}
+
+	return dotProduct / (magA * magB), nil // Calculate cosine similarity
+}
+
 type MessageMetadataManager interface {
 	GetMessageMetadata(id string) (*models.MessageMetadata, error)
 	CreateMessageMetadata(*models.MessageMetadataCreate) (*models.MessageMetadata, error)
@@ -68,21 +97,3 @@ type MessageMetadataManager interface {
 	UpdateMessageMetadata(id string, input models.MessageMetadataUpdate) (*models.MessageMetadata, error)
 	DeleteMessageMetadata(id string) (any, error)
 }
-
-/*
-Append these structs to your models file if you don't have them already
-type MessageMetadata struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-
-type MessageMetadataCreate struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-
-type MessageMetadataUpdate struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-*/
