@@ -17,7 +17,7 @@ func (rs Resources) RegisterConversationRoutes(s *fuego.Server) {
 	fuego.Delete(ConversationGroup, "/{id}", rs.deleteConversation)
 }
 
-func (rs Resources) getAllConversations(c fuego.ContextNoBody) (*[]models.Conversation, error) {
+func (rs Resources) getAllConversations(c fuego.ContextNoBody) ([]*models.Conversation, error) {
 	return rs.Service.GetAllConversations()
 }
 

@@ -17,6 +17,7 @@ type Conversation struct {
 	LastMessageIndex int
 	Version          int `gorm:"default:0"`
 	SelectedVersion  int `gorm:"-"`
+	CreatedAtString  string `gorm:"-"`
 
 	IsTest     bool
 	TestModels datatypes.JSONSlice[TestModels]
@@ -44,7 +45,7 @@ type ConversationCreate struct {
 
 type ConversationUpdate struct {
 	Name        string
-	IsTest      bool `json:"is_test" form:"is_test"`
+	IsTest      bool
 	Description string
 	Messages    []openai.ChatCompletionMessage
 }

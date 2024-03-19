@@ -19,9 +19,7 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Minute)
 	defer cancel()
 	body, err := c.Body()
-	agentId := c.Req.Header.Get("Agent-Id")
 	providerId := c.Req.Header.Get("Provider-Id")
-	fmt.Println(agentId)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +28,7 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 
 	if body.Stream {
 		startTime := time.Now()
-		stream, conversation, err := rs.Service.ProxyOpenaiStream(ctx, body, agentId, providerId)
+		stream, conversation, err := rs.Service.ProxyOpenaiStream(ctx, body, providerId)
 		if err != nil {
 			return nil, err
 		}
@@ -96,10 +94,9 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 			return nil, tx.Error
 		}
 
-		fmt.Println("resp: ", responseContent)
 	} else {
 		startTime := time.Now()
-		response, conversation, err := rs.Service.ProxyOpenaiChat(c.Context(), body, agentId, providerId)
+		response, conversation, err := rs.Service.ProxyOpenaiChat(c.Context(), body, providerId)
 		if err != nil {
 			return nil, err
 		}
@@ -112,8 +109,8 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 			LLMID:          body.Model,
 			MessageIndex:   len(body.Messages),
 			Metadata: &models.MessageMetadata{
-				BaseModel:      models.BaseModel{ID: uuid.NewString()},
-				EndLatencyMs:   int(time.Since(startTime).Milliseconds()),
+				BaseModel:    models.BaseModel{ID: uuid.NewString()},
+				EndLatencyMs: int(time.Since(startTime).Milliseconds()),
 			},
 		}
 		conversation.Messages = append(conversation.Messages, message)
@@ -121,8 +118,8 @@ func (rs Resources) ProxyOpenai(c *fuego.ContextWithBody[openai.ChatCompletionRe
 		if tx.Error != nil {
 			return nil, tx.Error
 		}
+		return response, nil
 	}
-	fmt.Println(responseContent)
 
 	return responseContent, nil
 }

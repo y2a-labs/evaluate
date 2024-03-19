@@ -36,7 +36,7 @@ func (s *Service) getLLM(modelName string) (modelID, providerID string, err erro
 	return
 }
 
-func (s *Service) ProxyOpenaiStream(ctx context.Context, req openai.ChatCompletionRequest, agentId string, providerId string) (*openai.ChatCompletionStream, *models.Conversation, error) {
+func (s *Service) ProxyOpenaiStream(ctx context.Context, req openai.ChatCompletionRequest, providerId string) (*openai.ChatCompletionStream, *models.Conversation, error) {
 	// When the provider comes from the headers
 	modelId := req.Model
 	var err error
@@ -69,7 +69,7 @@ func (s *Service) ProxyOpenaiStream(ctx context.Context, req openai.ChatCompleti
 	return stream, conversation, nil
 }
 
-func (s *Service) ProxyOpenaiChat(ctx context.Context, req openai.ChatCompletionRequest, agentId string, providerId string) (*openai.ChatCompletionResponse, *models.Conversation, error) {
+func (s *Service) ProxyOpenaiChat(ctx context.Context, req openai.ChatCompletionRequest, providerId string) (*openai.ChatCompletionResponse, *models.Conversation, error) {
 	// When the provider comes from the headers
 	modelId := req.Model
 	var err error

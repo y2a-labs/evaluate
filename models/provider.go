@@ -6,6 +6,7 @@ type Provider struct {
 	Type            string
 	EncryptedAPIKey string `json:"-"`
 	Requests        int
+	Models          []*LLM
 	Interval        int
 	Unit            string
 }
@@ -24,6 +25,7 @@ type ProviderCreate struct {
 type ProviderUpdate struct {
 	ApiKey   string
 	BaseUrl  string
+	Type     string
 	Requests int
 	Interval int
 	Unit     string

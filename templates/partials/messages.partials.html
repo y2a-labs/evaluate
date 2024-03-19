@@ -2,7 +2,7 @@
     {{ range .}}
         {{ template "message.partials.html" .}}
 
-        {{ if and (not .TestMessageID )  (eq .Role "assistant") }}
+        {{ if and (.TestMessages )  (eq .Role "assistant") }}
             <div class="collapse collapse-arrow">
                 <input type="checkbox" /> 
                 <div class="collapse-title text-md px-0 font-bold">

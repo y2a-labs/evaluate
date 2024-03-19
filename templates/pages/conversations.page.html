@@ -1,31 +1,37 @@
 {{ template "layout.html" . }}
 
 {{ define "page" }}
-    <div class="overflow-x-auto">
+    <h1 class="text-2xl pb-4">Conversation History</h1>
+    <div>
+        <p>Log and store all of your llm requests through our proxy api.</p>
+        <p>Just update your base_url to the Y2A Evaluate port a model name from any provider.</p>
+    </div>
+    <div class="mockup-code my-2">
+<pre><code>from openai import OpenAI
+  client = OpenAI(base_url="http://localhost:3000/v1/", api_key="any")
+
+  response = client.chat.completions.create(
+  model="Your model name"
+  messages=[{"role": "user","content": "How are you doing today?"}])</code></pre>
+    </div>
+    <div class="overflow-x-auto pt-4">
         <table class="table">
             <!-- head -->
             <thead>
             <tr>
                 <th>Created At</th>
-                <th>Name</th>
                 <th>Model</th>
-                <th>Total Tokens</th>
             </tr>
             </thead>
             <tbody>
             <!-- row 2 -->
             {{ range .}}
-            
-            <tr class="hover">
-                <td><a href="/conversations/{{ .ID }}">{{.CreatedAt}}</a></td>
-                <td><a href="./">{{ .Name }}</a></td>
-                <td><a href="./"><div class="badge badge-ghost">{{ .ModelID }}</div></a></td>
-                <td><a href="./"></a></td>
-            </tr>
-            
+                <tr class="hover">
+                    <td><a href="/conversations/{{ .ID }}">{{.CreatedAtString}}</a></td>
+                    <td><a href="./"><div class="badge badge-ghost">{{ .ModelID }}</div></a></td>
+                </tr>
             {{ end}}
             </tbody>
         </table>
     </div>
-    
 {{ end }}

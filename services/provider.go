@@ -2,6 +2,8 @@
 package service
 
 import (
+	"context"
+	"fmt"
 	"script_validation/internal/nomicai"
 	"script_validation/models"
 
@@ -39,14 +41,16 @@ func (s *Service) CreateProvider(input models.ProviderCreate) (*models.Provider,
 		Unit:            input.Unit,
 	}
 
-	tx := s.Db.Create(provider)
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-
 	// Initialize the provider
 	if provider.Type == "llm" {
 		client := openai.NewClient(input.ApiKey, provider.BaseUrl)
+
+		// Check to see if it works
+		_, err := client.ListModels(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("was not able to connect to the Please verify your baseURL and API Key")
+		}
+		// sk-slpllry-hd4eewa-wfm4hhq-fsdshbi
 
 		s.llmProviders[provider.ID] = &llmProvider{
 			Provider: provider,
@@ -66,15 +70,20 @@ func (s *Service) CreateProvider(input models.ProviderCreate) (*models.Provider,
 		}
 	}
 
+	tx := s.Db.Create(provider)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
 	//Initalizes the rate limiter
 	s.limiter.GetLimiter(provider)
 
 	return provider, nil
 }
 
-func (s *Service) GetAllProviders() (*[]models.Provider, error) {
-	providers := &[]models.Provider{}
-	tx := s.Db.Find(providers)
+func (s *Service) GetAllProviders() ([]*models.Provider, error) {
+	providers := []*models.Provider{}
+	tx := s.Db.Find(&providers)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -89,7 +98,7 @@ func (s *Service) UpdateProvider(id string, input models.ProviderUpdate) (*model
 	}
 
 	// Apply the updates to the model
-	if input.ApiKey != "" {
+	if input.ApiKey != "" || input.ApiKey != ".................." {
 		// Create the encryption key
 		aesKey, err := loadOrCreateAESKey(".env")
 		if err != nil {
@@ -104,6 +113,10 @@ func (s *Service) UpdateProvider(id string, input models.ProviderUpdate) (*model
 
 	if input.BaseUrl != "" {
 		provider.BaseUrl = input.BaseUrl
+	}
+
+	if input.Type != "" {
+		provider.Type = input.Type
 	}
 
 	if input.Requests != 0 {
@@ -146,21 +159,3 @@ type ProviderManager interface {
 	UpdateProvider(id string, input models.ProviderUpdate) (*models.Provider, error)
 	DeleteProvider(id string) (any, error)
 }
-
-/*
-Append these structs to your models file if you don't have them already
-type Provider struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-
-type ProviderCreate struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-
-type ProviderUpdate struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-*/

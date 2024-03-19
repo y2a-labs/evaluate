@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"script_validation/api"
 	service "script_validation/services"
+	"script_validation/static"
 	"script_validation/templates"
 	web "script_validation/web/handlers"
 	"strings"
@@ -70,6 +71,9 @@ func StartServer(port string, dev bool) {
 
 	server := fuego.NewServer(options...)
 
+	// Reparses the templates html/templates on every request
+	if dev { server.DevMode() }
+
 	service := service.New("./data/data.db", "./.env")
 
 	// Logs the requests
@@ -82,11 +86,8 @@ func StartServer(port string, dev bool) {
 	fuego.Use(webGroup, removeURLTrailingSlash)
 
 	// Serve the static files
-	staticFiles := http.FileServer(http.Dir("./static"))
-	fuego.Handle(webGroup, "/static/", http.StripPrefix("/static/", staticFiles))
-
-	//fs := http.FileServerFS(static.FS)
-	//fuego.Handle(webGroup, "/static/", http.StripPrefix("/static/", fs))
+	fs := http.FileServerFS(static.FS)
+	fuego.Handle(webGroup, "/static/", http.StripPrefix("/static/", fs))
 
 	webResources.RegisterTestRoutes(webGroup)
 	webResources.RegisterConversationRoutes(webGroup)

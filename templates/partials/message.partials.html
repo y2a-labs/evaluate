@@ -1,10 +1,10 @@
 <div tabindex="0" id="message" class="group focus:outline-none">
     <div class="flex justify-between">
         <div class="font-bold">
-            {{ if eq .TestMessageID ""}}
-                {{ .Role }}
-            {{ else }}
+            {{ if .LLMID }}
                 {{ .LLMID }}
+            {{ else }}
+                {{ .Role }}
             {{ end }}
         </div>
         {{ if .Score }}
@@ -105,6 +105,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 htmx.on('htmx:afterSwap', function(event) {
+    const contentBlocks = document.querySelectorAll('.content-block');
+    processContentBlocks(contentBlocks);
+});
+htmx.on('htmx:afterOnLoad', function(event) {
     const contentBlocks = document.querySelectorAll('.content-block');
     processContentBlocks(contentBlocks);
 });

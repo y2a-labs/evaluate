@@ -13,7 +13,6 @@ type Message struct {
 	Content             string `example:"Hello, world!" json:"content"`
 	MessageIndex        int
 	ConversationID      string
-	PromptID            string
 	LLMID               string
 	ConversationVersion int `gorm:"default:0"`
 	TestMessageID       string

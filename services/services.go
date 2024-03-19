@@ -149,8 +149,7 @@ func connectDB(db_name string) *gorm.DB {
 	)
 	db, err := gorm.Open(sqlite.Open(db_name), &gorm.Config{
 		NowFunc: func() time.Time {
-			ti, _ := time.LoadLocation("UTC")
-			return time.Now().In(ti)
+			return time.Now() // Use local timezone
 		},
 		Logger: newLogger,
 	})
@@ -166,7 +165,8 @@ func connectDB(db_name string) *gorm.DB {
 		&models.MessageMetadata{},
 		&models.Provider{},
 	)
-	db.Set("gorm:time_zone", "UTC")
+	// Remove this line to use the default (local) timezone
+	// db.Set("gorm:time_zone", "UTC")
 	return db
 }
 

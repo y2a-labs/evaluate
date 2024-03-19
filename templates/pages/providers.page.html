@@ -1,0 +1,76 @@
+{{ template "layout.html" . }}
+
+{{ define "page" }}
+    <h1 class="text-2xl pb-4">Providers</h1>
+    <div>Add at least 1 LLM Provider API Key and Nomic AI for text embedding</div>
+    <div class="flex flex-col space-y-4" id="providers">
+        {{ range . }}
+            {{ template "provider.partials.html" .}}
+        {{ end }}
+    </div>
+    <h2 class="text-xl py-4">Add Provider</h2>
+    <form hx-post="/providers" hx-swap="beforeend" hx-target="#providers" class="grid md:grid-cols-6 gap-2">
+        <label class="form-control col-span-3">
+            <div class="label">
+                <span class="label-text">Name:</span>
+            </div>
+            <input required type="text" placeholder="openai" name="id" class="input input-bordered" />
+        </label>
+
+        <label class="form-control col-span-3">
+            <div class="label">
+                <span class="label-text">Type:</span>
+            </div>
+            <select name="type" class="select select-bordered">
+                <option>llm</option>
+                <option>embedding</option>
+            </select>
+        </label>
+
+        <label class="form-control col-span-3">
+            <div class="label">
+                <span class="label-text">Base Url:</span>
+            </div>
+            <input required type="url" placeholder="openai" name="baseUrl" class="input input-bordered" />
+        </label>
+
+
+
+        <label class="form-control col-span-3">
+            <div class="label">
+                <span class="label-text">API Key:</span>
+            </div>
+            <input type="text" placeholder="API Key" name="apiKey" class="input input-bordered" />
+        </label>
+        <div class="col-span-6 pt-2 text-lg">
+            Rate Limiting:
+        </div>
+        <label class="form-control col-span-2">
+            <div class="label">
+                <span class="label-text">Requests:</span>
+            </div>
+            <input type="number" placeholder="openai" name="requests" value="10" class="input input-bordered" />
+        </label>
+
+        <label class="form-control col-span-2">
+            <div class="label">
+                <span class="label-text">Interval:</span>
+            </div>
+            <input type="number" placeholder="1" name="interval" value="1" class="input input-bordered" />
+        </label>
+
+        <label class="form-control col-span-2">
+            <div class="label">
+                <span class="label-text">Unit:</span>
+            </div>
+            <select name="unit" class="select select-bordered">
+                <option value="seconds">seconds</option>
+                <option value="minutes">minutes</option>
+            </select>
+        </label>
+
+        <button class="btn btn-outline col-span-2">Save</button>
+
+        <div class="col-span-2"></div>
+    </form>
+{{ end }}

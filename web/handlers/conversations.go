@@ -2,7 +2,6 @@
 package web
 
 import (
-	"fmt"
 	"script_validation/models"
 
 	"github.com/go-fuego/fuego"
@@ -33,24 +32,29 @@ func (rs Resources) getConversationList(c fuego.ContextNoBody) (fuego.HTML, erro
 	if err != nil {
 		return "", err
 	}
+	for i, _ := range conversations {
+		conversations[i].CreatedAtString = conversations[i].CreatedAt.Format("January 2 03:04 PM")
+	}
 	return c.Render("pages/conversations.page.html", conversations)
 }
 
-func (rs Resources) updateConversation(c *fuego.ContextWithBody[models.ConversationUpdate]) (*models.Conversation, error) {
+func (rs Resources) updateConversation(c *fuego.ContextWithBody[models.ConversationUpdate]) (any, error) {
 	id := c.PathParam("id")
 
 	body, err := c.Body()
-	fmt.Println(body)
 	if err != nil {
-		return &models.Conversation{}, err
+		return "", err
 	}
 
-	test, err := rs.Service.UpdateConversation(id, body)
+	conversation, err := rs.Service.UpdateConversation(id, body)
 	if err != nil {
-		return &models.Conversation{}, err
+		return "", err
+	}
+	if body.IsTest {
+		return c.Redirect(303, "/tests/"+conversation.ID)
 	}
 
-	return test, nil
+	return conversation, nil
 }
 
 func (rs Resources) deleteConversation(c *fuego.ContextNoBody) (*models.Conversation, error) {

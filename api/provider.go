@@ -9,7 +9,7 @@ import (
 func (rs Resources) RegisterProviderRoutes(s *fuego.Server) {
 	ProviderGroup := fuego.Group(s, "/provider")
 
-	fuego.Get(ProviderGroup, "/", rs.getAllProviders)
+	//fuego.Get(ProviderGroup, "/", rs.getAllProviders)
 	fuego.Post(ProviderGroup, "/", rs.createProvider)
 
 	fuego.Get(ProviderGroup, "/{id}", rs.getProvider)
@@ -17,7 +17,7 @@ func (rs Resources) RegisterProviderRoutes(s *fuego.Server) {
 	fuego.Delete(ProviderGroup, "/{id}", rs.deleteProvider)
 }
 
-func (rs Resources) getAllProviders(c fuego.ContextNoBody) (*[]models.Provider, error) {
+func (rs Resources) getAllProviders(c fuego.ContextNoBody) ([]*models.Provider, error) {
 	return rs.Service.GetAllProviders()
 }
 
@@ -52,7 +52,11 @@ func (rs Resources) updateProvider(c *fuego.ContextWithBody[models.ProviderUpdat
 	return new, nil
 }
 
-func (rs Resources) deleteProvider(c *fuego.ContextNoBody) (*models.Provider, error) {
+func (rs Resources) deleteProvider(c *fuego.ContextNoBody) (fuego.HTML, error) {
 	id := c.PathParam("id")
-	return rs.Service.DeleteProvider(id)
+	_, err := rs.Service.DeleteProvider(id)
+	if err != nil {
+		return "", err
+	}
+	return "", nil 
 }

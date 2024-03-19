@@ -31,7 +31,7 @@
   </table>
 </div>
 <form hx-put="/tests/{{ .test.ID }}/appendmodel" hx-target="#models-list" hx-swap="beforeend">
-  <select class="select w-sm select-sm" name="provider" hx-get="/llms" hx-swap="outerHTML" hx-target="#llms" hx-trigger="change">
+  <select class="select w-sm select-sm" name="provider" hx-get="/models" hx-swap="outerHTML" hx-target="#llms" hx-trigger="change">
     {{ range .llmProviders }}
       <option value="{{.}}">{{.}}</option>
     {{ end}}

@@ -1,0 +1,77 @@
+<div id="provider" class="collapse bg-base-200 collapse-arrow">
+    <input type="checkbox" /> 
+    <div class="collapse-title text-lg font-medium">
+        {{ .ID }}
+    </div>
+    <div class="collapse-content">
+        <form hx-put="/providers/{{ .ID }}" hx-swap="outerHTML" hx-target="closest #provider" class="grid md:grid-cols-6 gap-2">
+            <label class="form-control col-span-3">
+                <div class="label">
+                    <span class="label-text">Type:</span>
+                </div>
+                <select name="type" class="select">
+                    <option {{if eq .Type "llm"}} selected {{ end }}>llm</option>
+                    <option {{if eq .Type "embedding"}} selected {{ end }}>embedding</option>
+                </select>
+            </label>
+
+            <label class="form-control col-span-3">
+                <div class="label">
+                    <span class="label-text">Base Url:</span>
+                </div>
+                <input type="text" placeholder="openai" name="baseUrl" value="{{ .BaseUrl }}" class="input" />
+            </label>
+
+
+
+            <label class="form-control col-span-6">
+                <div class="label">
+                    <span class="label-text">API Key:</span>
+                </div>
+                <input type="password" placeholder="API Key" name="apiKey" value=".................." class="input" />
+            </label>
+            <div class="col-span-6 pt-2 text-lg">
+                Rate Limiting Settings:
+            </div>
+            <label class="form-control col-span-2">
+                <div class="label">
+                    <span class="label-text">Requests:</span>
+                </div>
+                <input type="number" placeholder="openai" name="requests" value="{{ .Requests }}" class="input" />
+            </label>
+
+            <label class="form-control col-span-2">
+                <div class="label">
+                    <span class="label-text">Interval:</span>
+                </div>
+                <input type="number" placeholder="1" name="interval" value="{{ .Interval }}" class="input" />
+            </label>
+
+            <label class="form-control col-span-2">
+                <div class="label">
+                    <span class="label-text">Unit:</span>
+                </div>
+                <select name="unit" class="select">
+                    <option value="seconds" {{if eq .Unit "seconds"}} selected {{ end }}>seconds</option>
+                    <option value="minutes" {{if eq .Unit "minutes"}} selected {{ end }}>minutes</option>
+                </select>
+            </label>
+            <button class="btn btn-outline col-span-2">Save</button>
+            <div class="col-span-2"></div>
+            <button hx-delete="/providers/{{ .ID}}" hx-target="closest #provider" class="btn btn-ghost col-span-2">Delete Provider</button>
+        </form>
+        <div class="col-span-6 pt-2 text-lg">
+            Models:
+        </div>
+        <button hx-post="/providers/{{ .ID }}/models" hx-target="next #models.select" hx-swap="outerHTML" class="btn pl-2 btn-ghost">Pull Models</button>
+        {{ template "models.partials.html" .Models}}
+        <div class="col-span-6 pt-2 text-lg">
+            Add Model:
+        </div>
+        <form hx-post="/models" hx-target="previous #models.select" hx-swap="afterbegin" class="flex space-x-4">
+            <input type="text" name="id" class="input" placeholder="openchat/openchat-7b" />
+            <input type="text" hidden name="providerID" value="{{ .ID }}" />
+            <button class="btn btn-outline">Add Model</button>
+        </form>
+    </div>
+</div>

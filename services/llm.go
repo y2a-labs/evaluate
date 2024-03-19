@@ -2,6 +2,8 @@
 package service
 
 import (
+	"context"
+	"fmt"
 	"script_validation/models"
 )
 
@@ -72,17 +74,39 @@ func (s *Service) UpdateLLM(id string, input models.LLMUpdate) (*models.LLM, err
 	return lLM, nil
 }
 
-func (s *Service) DeleteLLM(id string) (*models.LLM, error) {
-	lLM := &models.LLM{BaseModel: models.BaseModel{ID: id}}
+func (s *Service) PullLLMsFromProvider(providerId string) ([]*models.LLM, error) {
+	// Get the list of models from the provider
+	list, err := s.llmProviders[providerId].client.ListModels(context.Background())
+	if err != nil {
+		return nil, err
+	}
 
-	tx := s.Db.First(lLM)
+	// Turn it into a list of models.llm
+	llms := make([]*models.LLM, len(list.Models))
+	for i, model := range list.Models {
+		llms[i] = &models.LLM{
+			BaseModel: models.BaseModel{ID: model.ID},
+			ProviderID: providerId,
+		}
+	}
+
+	// Saves them to the database if they don't exist already
+	tx := s.Db.Save(llms)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
-	tx = s.Db.Delete(lLM)
+
+	return llms, nil
+}
+
+func (s *Service) DeleteLLM(id string) (*models.LLM, error) {
+	lLM := &models.LLM{}
+
+	tx := s.Db.Where("id = ?", id).Delete(lLM)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
+	fmt.Println(tx)
 	return nil, nil
 }
 
@@ -92,22 +116,5 @@ type LLMManager interface {
 	GetAllLLMs() ([]*models.LLM, error)
 	UpdateLLM(id string, input models.LLMUpdate) (*models.LLM, error)
 	DeleteLLM(id string) (any, error)
+	PullLLMsFromProvider(providerId string) ([]*models.LLM, error)
 }
-
-/*
-Append these structs to your models file if you don't have them already
-type LLM struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-
-type LLMCreate struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-
-type LLMUpdate struct {
-	// TODO add ressources
-	ID string `json:"id"`
-}
-*/
