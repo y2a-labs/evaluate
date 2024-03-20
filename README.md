@@ -11,7 +11,7 @@ Discover your ideal AI model. It provides a GUI for managing various language le
 
 ## Getting Started
 
-Follow these steps to get started with Y2A Evaluator:
+Follow these steps to get started with Y2A Evaluate:
 
 1. **Install Go**: Ensure you have Go version 1.22 or higher installed on your system. If not, you can install it from the [official Go website](https://go.dev/doc/install).
 2. **Install the Evaluator CLI tool**: Use the following command to install the Evaluator CLI tool:
