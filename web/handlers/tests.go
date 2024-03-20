@@ -4,8 +4,8 @@ package web
 import (
 	"errors"
 	"math"
-	"script_validation/models"
-	service "script_validation/services"
+	"github.com/y2a-labs/evaluate/models"
+	service "github.com/y2a-labs/evaluate/services"
 	"sort"
 
 	"github.com/go-fuego/fuego"

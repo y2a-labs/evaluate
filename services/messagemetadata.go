@@ -4,7 +4,7 @@ package service
 import (
 	"fmt"
 	"math"
-	"script_validation/models"
+	"github.com/y2a-labs/evaluate/models"
 )
 
 func (s *Service) GetMessageMetadata(id string) (*models.MessageMetadata, error) {

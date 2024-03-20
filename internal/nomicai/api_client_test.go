@@ -5,7 +5,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"script_validation/internal/nomicai"
+	"github.com/y2a-labs/evaluate/internal/nomicai"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

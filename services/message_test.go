@@ -1,7 +1,7 @@
 package service
 
 import (
-	"script_validation/models"
+	"github.com/y2a-labs/evaluate/models"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"

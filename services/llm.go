@@ -4,7 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"script_validation/models"
+	"github.com/y2a-labs/evaluate/models"
 )
 
 func (s *Service) GetLLM(id string) (*models.LLM, error) {

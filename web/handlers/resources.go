@@ -1,7 +1,7 @@
 package web
 
 import (
-	service "script_validation/services"
+	service "github.com/y2a-labs/evaluate/services"
 )
 
 type Resources struct {
