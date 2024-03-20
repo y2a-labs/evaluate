@@ -1,6 +1,7 @@
 # Y2A Evaluator
 
-Y2A Evaluator is a powerful tool that helps you discover your ideal AI model. It provides a unified interface for managing various language learning model (LLM) API providers, logs all your requests in a SQLite database, and allows you to compare and score model outputs against each other. This enables you to find faster and more cost-effective models to use.
+Discover your ideal AI model. It provides a GUI for managing various language learning model (LLM) API providers, logs all your requests in a SQLite database, and allows you to compare and score model outputs against each other. This enables you to find faster and more cost-effective models to use.
+![image](https://github.com/y2a-labs/evaluate/assets/151597434/492d3e6b-0a8b-4854-b201-3abad6171540)
 
 ## Key Features
 
@@ -43,4 +44,4 @@ Follow these steps to get started with Y2A Evaluator:
 
 ## Community
 
-Join our vibrant community on Discord! Click [here](https://discord.gg/HXgSS7RuWc) to join.
+Got any questions? Join our [Discord Community!](https://discord.gg/HXgSS7RuWc).
