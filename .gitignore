@@ -3,3 +3,5 @@
 .vscode/
 tailwindcss
 *.py
+/doc/
+dev.sh
