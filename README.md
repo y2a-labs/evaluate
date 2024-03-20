@@ -1,4 +1,4 @@
-# Y2A Evaluator
+# Y2A Multi-Turn Conversation Evaluator
 
 Discover your ideal AI model. It provides a GUI for managing various language learning model (LLM) API providers, logs all your requests in a SQLite database, and allows you to compare and score model outputs against each other. This enables you to find faster and more cost-effective models to use.
 ![image](https://github.com/y2a-labs/evaluate/assets/151597434/492d3e6b-0a8b-4854-b201-3abad6171540)
