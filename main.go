@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"script_validation/commands"
+	"github.com/y2a-labs/evaluate/commands"
 
 	"github.com/urfave/cli/v2"
 )

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"script_validation/models"
+	"github.com/y2a-labs/evaluate/models"
 	"strings"
 	"time"
 

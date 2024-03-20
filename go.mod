@@ -1,4 +1,4 @@
-module script_validation
+module github.com/y2a-labs/evaluate
 
 go 1.22.0
 

@@ -1,6 +1,6 @@
 package api
 
-import service "script_validation/services"
+import service "github.com/y2a-labs/evaluate/services"
 
 
 type Resources struct {
