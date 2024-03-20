@@ -72,7 +72,9 @@ func StartServer(port string, dev bool) {
 	server := fuego.NewServer(options...)
 
 	// Reparses the templates html/templates on every request
-	if dev { server.DevMode() }
+	if dev {
+		server.DevMode()
+	}
 
 	service := service.New("./data/data.db", "./.env")
 
@@ -88,6 +90,27 @@ func StartServer(port string, dev bool) {
 	// Serve the static files
 	fs := http.FileServerFS(static.FS)
 	fuego.Handle(webGroup, "/static/", http.StripPrefix("/static/", fs))
+
+	fuego.GetStd(server, "/v1/models", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	fuego.GetStd(server, "/", func(w http.ResponseWriter, r *http.Request) {
+		userAgent := r.Header.Get("User-Agent")
+		if !strings.Contains(userAgent, "Mozilla") { // Most browsers' User-Agent strings will contain "Mozilla"
+			return // If it's not a browser, just return without doing anything
+		}
+		openai, err := service.GetProvider("openai")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if openai.EncryptedAPIKey == "" {
+			http.Redirect(w, r, "/providers", http.StatusSeeOther)
+			return
+		}
+		http.Redirect(w, r, "/conversations", http.StatusSeeOther)
+	})
 
 	webResources.RegisterTestRoutes(webGroup)
 	webResources.RegisterConversationRoutes(webGroup)
@@ -111,6 +134,7 @@ func StartServer(port string, dev bool) {
 	apiResources.RegisterProviderRoutes(apiGroup)
 	apiResources.RegisterMessageMetadataRoutes(apiGroup)
 
+	// Run the server
 	err := server.Run()
 	if err != nil {
 		fmt.Println(err)

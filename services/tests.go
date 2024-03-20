@@ -188,7 +188,7 @@ func (s *Service) GetTest(conversationID string, selectedVersion int) (*models.C
 
 			score, err := s.CosineSimilarity(testMessage.Metadata.Embedding, message.Metadata.Embedding)
 			if err != nil {
-				return nil, fmt.Errorf("failed to calculate cosine similarity: %w", err)
+				score = 0
 			}
 			scoreStr := fmt.Sprintf("%.2f", score*100)
 			testMessage.Score, _ = strconv.ParseFloat(scoreStr, 64)
@@ -335,8 +335,7 @@ func getTestIndexes(messages []*models.Message, testMessageID string) ([]int, er
 	if testMessageID != "" {
 		for i, message := range messages {
 			if message.ID == testMessageID {
-				evalIndexes = append(evalIndexes, i)
-				return evalIndexes, nil
+				return []int{i}, nil
 			}
 		}
 		// if the ID can't be found

@@ -47,6 +47,10 @@ func (rs Resources) ProxyOpenaiChatCompletion(c *fuego.ContextWithBody[openai.Ch
 			resp, err := stream.Recv()
 			// If the stream is done, break out of the loop
 			if errors.Is(err, io.EOF) {
+				_, writeErr := c.Res.Write([]byte("data:[DONE]"))
+				if writeErr != nil {
+					return nil, fmt.Errorf("failed to write response: %w", writeErr)
+				}
 				break
 			}
 			// If the stream is stopped early

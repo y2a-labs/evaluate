@@ -1,4 +1,4 @@
-<div class="text-lg">Models</div>
+<div class="text-lg">Selected Models</div>
 <div class="overflow-x-auto">
   <table class="table table-xs max-w-full">
     <!-- head -->
@@ -30,7 +30,7 @@
     </tbody>
   </table>
 </div>
-<h2 class="text-lg">Add Model</h2>
+<h2 class="text-lg">Add a Model:</h2>
 <form hx-put="/tests/{{ .test.ID }}/appendmodel" hx-target="#models-list" hx-swap="beforeend">
   <select class="select w-sm select-sm" name="provider" hx-get="/models" hx-swap="outerHTML" hx-target="#llms" hx-trigger="change">
     {{ range .llmProviders }}

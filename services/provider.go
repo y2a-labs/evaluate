@@ -50,12 +50,13 @@ func (s *Service) CreateProvider(input models.ProviderCreate) (*models.Provider,
 	}
 
 	// Load any models that are compatible with the provider
-	_, err = s.PullLLMsFromProvider(provider.ID)
+	modelList, err := s.PullLLMsFromProvider(provider.ID)
 	if err == nil {
 		provider.ValidKey = true
 	}
+	provider.Models = modelList
 
-	tx := s.Db.Create(provider)
+	tx := s.Db.Save(provider)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -98,6 +99,13 @@ func (s *Service) UpdateProvider(id string, input models.ProviderUpdate) (*model
 			Provider: provider,
 			client:   openai.NewClient(input.ApiKey, provider.BaseUrl),
 		}
+
+		// Load any models that are compatible with the provider
+		modelList, err := s.PullLLMsFromProvider(provider.ID)
+		if err == nil {
+			provider.ValidKey = true
+		}
+		provider.Models = modelList
 	}
 
 	if input.BaseUrl != "" {

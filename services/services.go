@@ -12,7 +12,6 @@ import (
 	"script_validation/internal/limiter"
 	"script_validation/models"
 	"time"
-
 	"github.com/joho/godotenv"
 	"github.com/sashabaranov/go-openai"
 	"gorm.io/driver/sqlite"
@@ -64,7 +63,6 @@ func setRateLimits(llmProviders map[string]*llmProvider, rateLimiter *limiter.Ra
 	for _, provider := range llmProviders {
 		rateLimiter.GetLimiter(provider.Provider)
 	}
-	return
 }
 
 func getOpenaiComatibleProviders(db *gorm.DB, aesKey string) map[string]*llmProvider {
@@ -79,6 +77,9 @@ func getOpenaiComatibleProviders(db *gorm.DB, aesKey string) map[string]*llmProv
 
 	for _, provider := range providers {
 		// Get the client
+		if provider.EncryptedAPIKey == "" {
+			continue
+		}
 		decryptedKey, err := decrypt(provider.EncryptedAPIKey, aesKey)
 		if err != nil {
 			log.Printf("error decrypting api key for provider %s: %v", provider.ID, err)
@@ -100,7 +101,6 @@ func connectDB(db_name string) *gorm.DB {
 			return time.Now() // Use local timezone
 		},
 	})
-
 	if err != nil {
 		panic("failed to connect database")
 	}
@@ -130,25 +130,25 @@ func seedDB(db *gorm.DB) error {
 			BaseModel: models.BaseModel{ID: "openai"},
 			Type:      "llm",
 			BaseUrl:   "https://api.openai.com/v1",
-			Requests: 10,
-			Interval: 1,
-			Unit: "seconds",
+			Requests:  10,
+			Interval:  1,
+			Unit:      "seconds",
 		},
 		{
 			BaseModel: models.BaseModel{ID: "openrouter"},
 			Type:      "llm",
 			BaseUrl:   "https://openrouter.ai/api/v1",
-			Requests: 250,
-			Interval: 10,
-			Unit: "seconds",
+			Requests:  250,
+			Interval:  10,
+			Unit:      "seconds",
 		},
 		{
 			BaseModel: models.BaseModel{ID: "local"},
 			Type:      "llm",
 			BaseUrl:   "http://localhost:8080/v1",
-			Requests: 250,
-			Interval: 10,
-			Unit: "seconds",
+			Requests:  250,
+			Interval:  10,
+			Unit:      "seconds",
 		},
 	}
 
